@@ -739,3 +739,29 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
       (setq r ($rootscontract ($ratsimp r)))
       ($expand r)))) ; return r, or result from return-from above
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;; sqrt_numeric_denest (a,b,r,d2)
+;;;
+;;; Helper that denest expr = a + b*sqrt(r),
+;;; with d2 = a^2 - b^2*r > 0
+;;; or returns false if not denested.
+(defmfun $_sqrt_numeric_denest (a b r d2)
+   (let (($algebraic t) d depthr s vad vad1)
+    (setq depthr ($_sqrt_depth r))
+    (setq d (root d2 2))
+    (setq vad (add a d))
+    ;; sqrt_depth(res) <= sqrt_depth(vad) + 1
+    ;; sqrt_depth(expr) = depthr + 2
+    ;; There is denesting if sqrt_depth(vad)+1 < depthr + 2
+    ;; If vad^2 is a rational there is a fourth root
+    (if (or (< ($_sqrt_depth vad) (+ depthr 1)) ($ratnump(pow vad 2)))
+	(progn
+	  (setq s ($signum b))
+	  (setq vad1 ($ratsimp (div 1 vad))) ; 1/vad
+	  ;; (sqrt(vad/2)+signum(b)*sqrt(b^2*r*vad1/2)
+          ($expand (add (root (div vad 2) 2)
+			(mul s (root (mul (power b 2) r (div vad1 2)) 2))))))))
+
