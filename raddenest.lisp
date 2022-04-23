@@ -1006,9 +1006,7 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
      ;;        Could use specialized routines from rat3{a-e}.lisp.
      (setq Fba (add (pow x 4) (mul 4 (pow x 3))
 		    (mul 8 (div beta alpha) x) (mul -4 (div beta alpha))))
-     ;;(displa Fba)
      (setq Fba ($multthru ($denom (mul 4 (div beta alpha))) Fba))
-     ;;(displa Fba)
      ;; apply the rational root theorem to the polynomial Fba
      ;; to find s - any rational root (or nil on failure)
      (setq s (one-rational-root-poly Fba x 4))
