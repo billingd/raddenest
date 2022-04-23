@@ -1,0 +1,11 @@
+/*
+ check.lisp.in
+
+ Run the lisp/maxima version of the raddenest testsuite
+*/
+
+load("./raddenest.mac");
+load("./raddenest.lisp");
+file_search_tests: ["./$$$.mac"];
+testsuite_files:["rtest_raddenest.mac"];
+run_testsuite(display_all=false, tests=["rtest_raddenest.mac"]);
