@@ -970,3 +970,116 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
     (setq bfexpr ($bfloat expr))
     (setq fpprec saved-fpprec)
     bfexpr))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; rad_denest_ramanujan (expr)
+;;;
+;;; Denest expr=sqrt(alpha^(1/3)+beta^(1/3)) using the results
+;;; of Honsbeek (2005) [4], Chapter 3.
+;;; If expr can't be denested, return false.
+;;;
+;;; alpha and beta must be rationals; parameter checking must
+;;; be done by the calling function.
+;;;
+(defmfun $_rad_denest_ramanujan (expr)
+  (let (alpha beta c Fba (x ($gensym)) s tt res)
+    (setq res (match-sqrt-of-cbrts expr)) ; maxima list [alpha,beta]
+    (setq alpha (second res))
+    (setq beta (third res))
+    (cond
+    ;;  If domain=complex, Maxima interprets a^(1/3) with a>0
+    ;;  as the real branch of the cube root, but leaves the
+    ;;  expression untouched if a<0.
+    ((and (eql $domain '$complex)
+	  (or (mnegp alpha) (mnegp beta))) nil)
+    ;;  The perfect cube case can be trivially denested
+    ;;  but this code segment should, in fact, not be reached
+    ;;  since the simplifier already handles this case.
+    (($ratnump (setq c (root ( div beta alpha) 3)));c=(beta/alpha)^(1/3)
+     ;; sqrt(alpha^(1/3)*sqrt(1+c))
+     (root (mul (root alpha 3) (root (add 1 c) 2)) 2)) 
+    (t
+     ;; Fba: t^4+4*t^3+8*beta/alpha*t-4*beta/alpha
+     ;; FIXME: Fba is a polynomial with integer coeffs.
+     ;;        Could use specialized routines from rat3{a-e}.lisp.
+     (setq Fba (add (pow x 4) (mul 4 (pow x 3))
+		    (mul 8 (div beta alpha) x) (mul -4 (div beta alpha))))
+     ;;(displa Fba)
+     (setq Fba ($multthru ($denom (mul 4 (div beta alpha))) Fba))
+     ;;(displa Fba)
+     ;; apply the rational root theorem to the polynomial Fba
+     ;; to find s - any rational root (or nil on failure)
+     (setq s (one-rational-root-poly Fba x 4))
+     (when s
+       (setq tt (sub beta (mul (pow s 3) alpha))) ;tt=beta-s^3*alpha
+       ;;  Sign: either alpha^(1/3)+beta^(1/3) is positive, then
+       ;;  so is its sqrt, or alpha^(1/3)+beta^(1/3) is negative,
+       ;;  then its sqrt is %i times a positive real.
+       ;;  Both cases are treated correctly by the formula below.
+       ;;
+       ;; res: sqrt(1/tt)*abs(-1/2*s^2*(alpha^2)^(1/3)
+       ;;         +s*(alpha*beta)^(1/3)+(beta^2)^(1/3))
+       (setq res (mul
+		  (root (inv tt) 2)
+		  ($abs
+		   (add
+		    (mul -1//2 (pow s 2) (root (pow alpha 2) 3))
+		    (mul s (root (mul alpha beta) 3))
+		    (root (pow beta 2) 3)))))
+       ($ratsimp res))))))
+
+;;; Use the rational root theorem to return a rational root of
+;;; an nth degree polynomial with integer coefficients.
+;;; Return nil if no rational root exists.
+;;;
+;;;  p(x) is a maxima expression = ak*x^k + ... + a2*x^2 + a1*x + a0
+;;;
+;;; Each rational solution x = n/m with n and m relatively prime satisfies
+;;; - n is an integer factor of a0
+;;; - m is an integer factor of ak
+;;;
+(defun one-rational-root-poly (p x k)
+  (let (div0 divk i m n (possible-roots nil))
+    (setq div0 (rest (take '($divisors) ($coeff p x 0))))
+    (setq divk (rest (take '($divisors) ($coeff p x k))))
+    (dolist (n div0)   ; divisors of coefficient a0
+      (dolist (m divk) ; divisors of coefficient ak
+	(progn
+          (push (div n m)       possible-roots)    ;  n/m
+          (push (div (neg n) m) possible-roots)))) ; -n/m
+    (setq possible-roots (delete-duplicates possible-roots :test #'alike1))
+    (dolist (i possible-roots)
+      ;; return first i where i is a root of p(x), otherwise nil
+      (when (alike1 (maxima-substitute i x p) 0) (return i)))))
+ 
+;;; expr=sqrt(alpha^(1/3)+beta^(1/3)) with alpha and beta rational
+;;;
+;;; Return maxima list [alpha,beta], or raise maxima error on failure.
+;;;
+;;; Just a hack for now.  May not match more complicated forms.
+(defun match-sqrt-of-cbrts (expr)
+  (let ((alpha nil) (beta nil) arg)
+    (cond
+     ((not ($_sqrtp expr)) nil) ; expr must be sqrt - test may be to strict
+     ((not (mplusp (setq arg (second expr)))) nil) ;
+     ((fourth arg) nil) ; only two terms allowed in arg
+     (t ; have a sum of terms in cbrt.
+      (setq alpha (arg-of-cbrt (second arg)))
+      (setq beta  (arg-of-cbrt (third arg)))))
+    (unless (and alpha beta)
+      (merror "match-sum-of-cbrts: match failure"))
+    `((mlist) ,alpha ,beta))) ;; maxima list [alpha,beta]
+
+;;; ex is a maxima expression
+;;; Return the rational argument of a cube-root function, or nil on failure
+;;; Need to deal with expressions like (-4)^(1/3)
+;;; which can be simplfied to (when domain:real) 
+;;;    ((MTIMES SIMP) -1 ((MEXPT SIMP) 4 ((RAT SIMP) 1 3)))
+;;; Start with the simple form similar to maxima code.
+;;; Need to be careful with complex and negative args if modified.
+(defun arg-of-cbrt (ex)
+  (let ((r (pow ex 3)))
+    (if ($ratnump r) r nil)))
+
