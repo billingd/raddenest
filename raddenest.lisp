@@ -140,6 +140,29 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
     http://www.cs.nyu.edu/exact/pap/rootBounds/sumOfSqrts/bloemerThesis.pdf
 |#
 
+;;;Helper functions
+
+;;; Comparison functions that use the facts database and only
+;;; return t or nil.  Review usage.  Correct tests are critical
+;;; The underlying comparison can return unknown.  Only accept t.
+
+(defun my-mlessp (a b) ; a < b
+  (eq (mevalp `((mlessp) ,a ,b)) t))
+#|
+(defun my-mleqp (a b) ; a <= b
+  (eq (mevalp  `((mleqp) ,a ,b)) t))
+
+(defun my-$equal (a b) ; a = b
+  (eq (mevalp`(($equal) ,a ,b)) t))
+|#
+(defun my-$notequal (a b) ; a # b
+  (eq (mevalp `(($notequal) ,a ,b)) t))
+
+(defun my-mgeqp (a b) ; a >= b
+  (eq (mevalp `((mgeqp) ,a ,b)) t))
+
+(defun my-mgreaterp (a b) ; a > b
+ (eq (mevalp `((mgreaterp) ,a ,b)) t))
 
 
 ;;; Probably want a predicate that is true when
