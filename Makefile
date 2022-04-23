@@ -1,6 +1,8 @@
 # run maxima raddenest tests
 
-all: check_mac
+all: check
+
+check: check_mac check_lisp
 
 # Run the maxima version
 check_mac: check_mac.in raddenest.mac rtest_raddenest.mac
