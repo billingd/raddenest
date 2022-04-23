@@ -627,3 +627,115 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
        collect (mul c s) into blist
      finally
        (return `((mlist) ,g ,(apply #'add alist) ,(apply #'add blist))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Denesting functions                                                 ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; Call maxima function raddenest - SHIM FUNCTION DURING CONVERSION
+;;;
+(defun raddenest (expr &optional (max_iter 3))
+  (simplify (mfunction-call $raddenest expr max_iter)))
+
+;;; Call maxima function _sqrtdenest1 - SHIM FUNCTION DURING CONVERSION
+;;;
+;;; There is existing function sqrtdenest1 in src/sqrtdenest.lisp
+(defun _sqrtdenest1 (expr denester)
+  (simplify (mfunction-call $_sqrtdenest1 expr denester)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; sqrtdenest_rec (expr)
+;;; Helper that denests the square root of the sum of three or more surds.
+;;;
+;;; It returns the denested expression; if it cannot be denested it
+;;; throws raddenestStopIteration
+;;;
+;;; Algorithm: expr.base is in the extension Q_m = Q(sqrt(r_1),..,sqrt(r_k));
+;;; split expr.base = a + b*sqrt(r_k), where `a` and `b` are on
+;;; Q_(m-1) = Q(sqrt(r_1),..,sqrt(r_(k-1))); then a^2 - b^2*r_k is
+;;; on Q_(m-1); denest sqrt(a^2 - b^2*r_k) and so on.
+;;;
+;;; See Borodin, Fagin, Hopcroft, Tompa (1985), section 6.
+;;;
+;;; Examples
+;;; ========
+;;;
+;;; (%i1)   _sqrtdenest_rec(sqrt(-72*sqrt(2) + 158*sqrt(5) + 498));
+;;; (%o1)   (-sqrt(10))+9*sqrt(5)+sqrt(2)+9
+;;; (%i2)   w:-6*sqrt(55)-6*sqrt(35)-2*sqrt(22)-2*sqrt(14)
+;;;             +2*sqrt(77)+6*sqrt(10)+65$
+;;; (%i3)   _sqrtdenest_rec(sqrt(w));
+;;; (%o3)   (-sqrt(11))-sqrt(7)+3*sqrt(5)+sqrt(2)
+;;;
+(defmfun $_sqrtdenest_rec (expr)
+  (let (($algebraic t)
+	(sqrt2   `((mexpt simp) 2  ,1//2)) ; sqrt(2)
+	(sqrt2/2 `((mexpt simp) 2 ,-1//2)) ; sqrt(2)/2 = 1/sqrt(2)
+	r ; radicand
+	g a b c ac d val)
+    (block rec
+      (unless (mexptp expr) (return-from rec (raddenest expr)))
+      ;; what if exponent is not 1/2, say 3/2 or -1/2
+      ;; check and raise error.  Deal with it later.
+      (unless ($_sqrtp expr)
+	(merror "sqrtdenest_rec: arg is not a literal sqrt"))
+      (setq r (second expr)) ; radicand of expr
+      ;; if radicand r < 0, try denesting %i*sqrt(-r)
+      (if (my-mlessp r 0) ; r (possibly symbolic) definitely < 0
+	  (return-from rec (mul '$%i ($_sqrtdenest_rec (root (neg r) 2)))))
+      ;; First level of denesting
+      (setq val ($_split_surds r)) ; returns maxima list [g,a,b]
+      (setq g (second val))
+      (setq a (third val))
+      (setq b (fourth val))
+      (setq a (mul a (root g 2))) ; a = a*sqrt(g)
+      (when (my-mlessp a b) ; if a<b, swap a and b
+	(let ((tmp a)) (setq a b) (setq b tmp)))
+      (setq c2 (sub (pow a 2) (pow b 2))) ; a^2-b^2
+      (setq c2 ($rootscontract ($expand c2)))
+      
+      ;; Is there another level? expression c2 has > 2 args
+      (if (and (not ($atom c2)) (> (length c2) 3))
+	(let (a1 b1 c2_1 c_1 d_1 f val)
+	  (setq val ($_split_surds c2)) ; returns maxima list [g,a,b]
+	  (setq g (second val))
+	  (setq a1 (third val))
+	  (setq b1 (fourth val))
+	  (setq a1 (mul a1 (root g 2))) ; a1 = a1*sqrt(g)
+	  (when (my-mlessp a1 b1) ; if a1<b1, swap a1 and b1
+	    (let ((tmp a1)) (setq a1 b1) (setq b1 tmp)))
+	  (setq c2_1 (sub (pow a1 2) (pow b1 2))) ; a1^2-b1^2
+	  (setq c2_1 ($rootscontract ($expand c2_1)))
+	  
+          (setq c_1 ($_sqrtdenest_rec (root c2_1 2)))
+	  (setq d_1 ($_sqrtdenest_rec (root (add a1 c_1) 2)))
+	  (setq f (div b1 d_1)) ; b1/d_1
+          (setq f ($_sqrtcontract ($expand ($ratsimp f))))
+	  ;; c = d_1*sqrt(2)/2+f*sqrt(2)/2 = (d_1+f)*sqrt(2)/2
+	  (setq c (mul (add d_1 f) sqrt2/2))
+          (setq c ($expand c)))
+	;; else 
+        (setq c (_sqrtdenest1 (root c2 2) t)))
+      ;; Time to give up?      
+      (when (> ($_sqrt_depth c) 1) ($throw "raddenestStopIteration"))
+      
+      (setq ac ($rootscontract (add a c)))
+      ;; check for end of recursion
+      ;; Is ac longer or more complex than original radicand r
+      (when (and (not ($atom ac))
+		 (>= (length (rest ac)) (length (rest r)))
+		 (>= ($_complexity ac)
+		     ($_complexity r)))
+	($throw "raddenestStopIteration"))
+      
+      (setq d (raddenest (root ac 2)))
+      (when (> ($_sqrt_depth d) 1) ($throw "raddenestStopIteration"))
+      (setq r (div b d)) ; r = b/d  NOTE: r has been repurposed
+      (setq r ($rootscontract ($expand ($ratsimp r))))
+      (setq r (div ($expand (add (mul d sqrt2) (mul r sqrt2))) 2))
+      (setq r ($rootscontract ($ratsimp r)))
+      ($expand r)))) ; return r, or result from return-from above
+
