@@ -742,7 +742,6 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-
 ;;; sqrt_numeric_denest (a,b,r,d2)
 ;;;
 ;;; Helper that denest expr = a + b*sqrt(r),
@@ -764,4 +763,90 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 	  ;; (sqrt(vad/2)+signum(b)*sqrt(b^2*r*vad1/2)
           ($expand (add (root (div vad 2) 2)
 			(mul s (root (mul (power b 2) r (div vad1 2)) 2))))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; sqrt_biquadratic_denest (expr a b r d2)
+;;;
+;;; denest expr = sqrt(a + b*sqrt(r))
+;;; where a, b, r are linear combinations of square roots of
+;;; positive rationals on the rationals (SQRR) and r > 0, b != 0,
+;;; d2 = a^2 - b^2*r > 0
+;;;
+;;; If it cannot denest it returns false.
+;;;
+;;; ALGORITHM
+;;; Search for a solution A of type SQRR of the biquadratic equation
+;;; 4*A^4 - 4*a*A^2 + b^2*r = 0                               (1)
+;;; sqd = sqrt(a^2 - b^2*r)
+;;; Choosing the sqrt to be positive, the possible solutions are
+;;; A = sqrt(a/2 +/- sqd/2)
+;;; Since a, b, r are SQRR, then a^2 - b^2*r is a SQRR,
+;;; so if sqd can be denested, it is done by
+;;; _sqrtdenest_rec, and the result is a SQRR.
+;;; Similarly for A.
+;;;
+;;; Examples of solutions (in both cases a and sqd are positive):
+;;;
+;;;   Example of expr with solution sqrt(a/2 + sqd/2) but not
+;;;   solution sqrt(a/2 - sqd/2):
+;;;   expr: sqrt(-sqrt(15) - sqrt(2)*sqrt(-sqrt(5) + 5) - sqrt(3) + 8);
+;;;   a: -sqrt(15) - sqrt(3) + 8;
+;;;   sqd = -2*sqrt(5) - 2 + 4*sqrt(3)
+;;;
+;;;   Example of expr with solution sqrt(a/2 - sqd/2) but not
+;;;   solution sqrt(a/2 + sqd/2):
+;;;   w: 2 + sqrt(2) + sqrt(3) + (1 + sqrt(3))*sqrt(2 + sqrt(2) + 5*sqrt(3))
+;;;   expr: sqrt(expand(w^2))
+;;;   a: 4*sqrt(6) + 8*sqrt(2) + 47 + 28*sqrt(3)
+;;;   sqd: 29 + 20*sqrt(3)
+;;;
+;;; Define B = b/(2*A); eq.(1) implies a = A^2 + B^2*r; then
+;;; expr^2 = a + b*sqrt(r) = (A + B*sqrt(r))^2
+;;;
+;;; Examples
+;;; ========
+;;; (%i1)   z: sqrt((2*sqrt(2) + 4)*sqrt(2 + sqrt(2)) + 5*sqrt(2) + 8)$
+;;;         [a,b,r] : _sqrt_match(z^2)$
+;;;         d2: a^2 - b^2*r$
+;;;         _sqrt_biquadratic_denest(z, a, b, r, d2);
+;;; (%o1)   sqrt(2) + sqrt(sqrt(2) + 2) + 2
+;;;
+(defmfun $_sqrt_biquadratic_denest (expr a b r d2)
+  (let (($algebraic t)
+	(z nil) ; default return value
+	sqd x1 x2 A_ B_)
+    (block biquad
+      (unless (my-mgreaterp r 0) (return-from biquad)) ; check r>0
+      (unless (my-$notequal b 0) (return-from biquad)) ;       b#0
+      (unless (my-mgeqp d2 0)    (return-from biquad)) ;       d2 >= 0
+      (if (< ($_sqrt_depth (second expr)) 2) (return-from biquad))
+      ;; check that all terms in the linear combinations a, b, r
+      ;;    have integer square
+      (loop
+        for x in (list a b r) do
+        (loop
+	  ;; If x is a sum, check each term in x. Otherwise check x.
+          for y in (if (not (mplusp x)) (list x) (rest x))
+          for y2 = (pow y 2)
+	    if (or (not (integerp y2)) (mnegp y2))
+	    do (return-from biquad)))
+      (setq sqd (raddenest (root d2 2)))
+      (if (> ($_sqrt_depth sqd) 1) (return-from biquad))
+      (setq x1 (add (div a 2) (div sqd 2))) ; a/2+sqd/2
+      (setq x2 (sub (div a 2) (div sqd 2))) ; a/2-sqd/2
+      ;; look for a solution A with depth 1
+      (loop
+       for x in (list x1 x2)
+       for A_ = (raddenest (root x 2))
+       when (<= ($_sqrt_depth A_) 1)
+       do
+         (setq B_ (div b (mul 2 A_))) ; B = b/(2*A)
+         (setq B_ ($ratsimp ($rootscontract ($expand ($ratsimp B_)))))
+         (setq z (add A_ (mul B_ (root r 2)))) ; z = A+B*sqrt(r)
+	 (if (mnegp z) (setq z (neg z)))
+	 (setq z ($expand z))
+	 (return-from biquad))) ; exit loop as denesting found and set to z
+    z)) ; reach here via a return-from with z nil or set in last loop
 
