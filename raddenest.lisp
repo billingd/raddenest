@@ -850,3 +850,123 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 	 (return-from biquad))) ; exit loop as denesting found and set to z
     z)) ; reach here via a return-from with z nil or set in last loop
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; denester goes here
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; rad_denest_cardano (expr)
+;;;
+;;; Denests expr=(a+b*sqrt(r))^(m/n) using Cardano polynomials.
+;;;
+;;; Reference: Osler (2001)
+;;;
+(defmfun $_rad_denest_cardano (expr)
+  (unless (mexptp expr) (merror "rad_denest_cardano: expr not an mexpt"))
+  (let (a b r m n divs sig radicand exponent result
+          ($ratprint nil)
+	  ($bftorat nil)
+	  (prec 169) ; fpprec equivalent to $fprec=50
+	  ($ratepsilon 1.0e-40))
+    ;; decompose expr = radicand^exponent to (a+b*sqrt(r))^(m/n)
+    (setq radicand (second expr))
+    (setq exponent (third expr))
+    (setq result ($_sqrt_match radicand)) ; [a,b,r]: sqrt_match(radicand)
+    (if (null result)
+	(merror "rad_denest_cardano: sqrt_match returned nil"))
+    (setq a (second result))
+    (setq b (third result))
+    (setq r (fourth result))
+    (setq m ($num exponent))
+    (setq n ($denom exponent))
+    ;; keep sign; reinterpret as a+sqrt(b) as in ref. article
+    ;; Osler works denests expressions of form (a+sqrt(b))^(m/n)
+    (setq sig ($signum b))
+    (setq b (mul (power b 2) r))
+    ;; (lisp) list of divisors of denominator n from largest to smallest
+    (setq divs (reverse (rest (take '($divisors) n))))
+    ;; check each divisor of the radical's index
+    (loop
+     with p with ps with s with x = ($gensym)
+     for d in divs
+     for c = (root (sub (pow a 2) b) d) ; c = (a^2-b)^(1/d)
+     if ($ratnump c) do
+       ;; If c is rational then expr can be denested if s is a rational root of p
+       ;; where
+       ;;        p(x) = cardano_poly(d,c,x)-2*a
+       ;;
+       ;;        s = (a+sqrt(b))^(1/d) + (a-sqrt(b))^(1/d)
+       ;;
+       ;; To avoid excessive numeric evaluations of the polynomial a
+       ;; single rational candidate is checked. This candidate is a rational
+       ;; approximation of s. The given values for fpprec
+       ;; and ratepsilon are heuristic in nature.
+       ;; p(x) = cardano_poly(d,c,x)-2*a
+       (setq p (sub (cardano_poly d c x) (mul 2 a))) 
+       ;;(setq p ($horner (mul p ($denom p))))
+       ;; s = (a+sqrt(b))^(1/d)+(a-sqrt(b))^(1/d)
+       (setq s (add (root (add a (root b 2)) d)   ; s = (a+sqrt(b))^(1/d)
+     		    (root (sub a (root b 2)) d))) ;    +(a-sqrt(b))^(1/d)
+       (setq s (different-precision-bfloat s prec))
+       (setq s ($rat s)) ; rational approximation to s
+       (setq ps ($expand ($ratsubst s x p)))
+       (if (alike1 ps 0) 
+         (progn
+	   ;; result = ((s+sig*sqrt(s^2-4*c))/2)^(d/n))^m
+	   (setq result
+		 (power
+		  (div (add s (mul sig (root (sub (pow s 2) (mul 4 c)) 2))) 2)
+		  (div (mul d) n)))
+	   (setq result ($expand ($ratsimp result)))
+	   (setq result (pow result m))
+	   (return-from $_rad_denest_cardano result)))
+     finally (return expr))))
+
+
+;;; cardano_poly (n c x)
+;;;
+;;; "Cardano" polynomials as defined in Osler (2001)
+;;;
+;;;   C1(c,x) = x
+;;;   C2(c,x) = x^2 - 2*c
+;;;   C3(c,x) = x^3 - 3*c*x
+;;;     ...
+;;;   Cn(c,x) = x*C[n-1](c,x) - c*C[n-2](c,x)
+;;;
+;;; CHECKME: maxima routine codes variable as literal x and ignores argument x
+;;;          Not sure what we should be doing here.
+;;;
+;;; FIXME: Could use polynomial functions from rat3[a-e].lisp directly
+;;;        Could return a list, array or hashmap of polynomials as
+;;;        maximum value of n is known in advance.
+;;;
+(defun cardano_poly (n c x)
+  (let (poly poly1 poly2)
+    (setq poly2 ($rat x))                           ; degree n-2
+    (setq poly1 ($rat (sub (pow x 2) (mul 2 c))))   ; degree n-1
+    (cond
+     ((= n 1) poly2)
+     ((= n 2) poly1)
+     (t
+      (loop
+       for i from 3 to n
+       do
+         (setq poly (sub (mul x poly1) (mul c poly2))) ; x*poly1-c*poly2
+         (setq poly2 poly1)
+	 (setq poly1 poly)
+       finally (return poly))))))
+
+
+;;; Evaluate bfloat(expr) with maxima::fpprec=prec
+;;; prec sets lisp variable maxima::fpprec ~ maxima $fpprec/log10(2)
+(defun different-precision-bfloat (expr prec)
+  (let (bfexpr (saved-fpprec fpprec))
+    (setq fpprec prec)
+    (setq bfexpr ($bfloat expr))
+    (setq fpprec saved-fpprec)
+    bfexpr))
