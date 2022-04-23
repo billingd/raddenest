@@ -1,5 +1,5 @@
-(kill(all), load(raddenest), 'done);
-'done$
+/*(kill(all), load(raddenest), 'done);
+'done$*/
 
 /* Check helper functions */
 

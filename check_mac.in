@@ -1,0 +1,10 @@
+/*
+ check.mac.in
+
+ Run the maxima version of the raddenest testsuite
+*/
+
+load("./raddenest.mac");
+file_search_tests: ["./$$$.mac"];
+testsuite_files:["rtest_raddenest.mac"];
+run_testsuite(display_all=false, tests=["rtest_raddenest.mac"]);
