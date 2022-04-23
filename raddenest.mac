@@ -375,7 +375,7 @@ _sqrt_match(p):=block(
         )
     )
     else (
-        [b, r]: _split_coef(p),
+        [b, r]: _splitcoef(p),
         if _sqrtp(r) then res:[0,b,r^2]
         else res:false
     ),
