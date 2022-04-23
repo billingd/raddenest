@@ -251,9 +251,214 @@
     (every (lambda (x) (sqrtratp x nested)) (cdr x)))
    ((mplusp x) ; A sum. Examine terms with nested t
       (every (lambda (x) (sqrtratp x t)) (cdr x)))
-   ((sqrtpower2p x) ; x = r^e with e=(n/2)
+   (($_sqrtpower2p x) ; x = r^e with e=(n/2)
     ;; x is a sqrt.
     ;; if nested then return nil
     ;; otherwise examine first arg r with nested t
     (destructuring-bind (op r e) x (if nested nil (sqrtratp r t))))
    (t nil)))
+
+
+(defun ratorsqrtp (p)
+  "true if p is a rational or the sqrt of a rational"
+  (if (or ($ratnump p) (sqrtratp p)) t nil))
+
+;;; SQRT_MATCH (P)
+;;; Returns [a, b, r] for _sqrt_match(a + b*sqrt(r)) where, in addition to
+;;; matching, sqrt(r) also has the maximal sqrt_depth among addends of p.
+;;; If p can't be matched, the return value is false.
+;;;
+;;; Example:
+;;; (%o1)   _sqrt_match(2*sqrt(sqrt(5)+1)+sqrt(2)*sqrt(3)+sqrt(2)+1);
+;;; (%o2)   [sqrt(2)*sqrt(3)+sqrt(2)+1,2,sqrt(5)+1]
+(defmfun $_sqrt_match (x)
+  (let ((p ($expand x)))
+    (cond
+      (($numberp p) `((mlist) ,p 0 0)) ; p is a maxima number
+      ((mplusp p)                      ; p is a sum
+        (if (every  #'ratorsqrtp (rest p))
+          ;; "trivial" case. sum or terms without nested radicals
+	  ($reverse ($_split_surds p))
+	  ;; a sum p contains nested radicals
+	  (sqrt_match2 p)))
+      (t ; p is not a maxima number or a sum
+       ;; splitcoef returns a maxima list [b,r] where p = b*sqrt(r)
+       (destructuring-bind (op b r) ($_splitcoef p)
+	  (if ($_sqrtp r) `((mlist) 0 ,b ,(pow r 2)) nil))))))
+
+
+;;; comparison function for sqrt_match2
+;;;
+;;; Is depth of v1 > v2, lisp lists (depth expr)
+(defun depth> (v1 v2)
+  (cond
+   ((> (first v1) (first v2)) t)
+   ((< (first v1) (first v2)) nil)
+   (t ($ordergreatp (second v1) (second v2)))))
+
+
+;;; helper for sqrt_match
+;;; p is a sum containing at least one nested radical
+;;; assume that p was expanded prior to call
+;;;
+;;; Returns [a, b, r] for _sqrt_match(a + b*sqrt(r))
+;;; If p can't be matched, the return value is false.
+(defun sqrt_match2 (p)
+  (if (not (mplusp p)) (merror "sqrt_match2: not a sum ~a" p))
+  (let (v nmax r depth)
+    ;; for each arg of p generate list (sqrt_depth(arg),arg)
+    (setq v
+	  (loop for x in (rest p)
+		collect (list ($_sqrt_depth x) x)))
+    (loop ; find nmax - the arg with maximum depth
+      for term in (rest v)
+      if (null nmax) do (setq nmax term)
+      else if (depth> term nmax) do (setq nmax term))
+    (setq depth (first nmax))
+    (if (= depth 0) ; all args have sqrt_depth = 0
+	(return-from sqrt_match2 nil))
+    ;; find r from term with maximum depth (which is > 0)
+    ;; if term is a product then set r to the factor with maximum depth
+    ;; and other factors will form coefficient b
+    (setq r (maximum-depth-term (second nmax) (first nmax)))
+    ;; Now loop over terms in sum p collecting terms containing r
+   (loop
+     with b = nil
+     for (d x i) in v
+     if (< d depth) ; term can't contain r as d < depth
+       collect x into alist
+     else
+       if (alike1 x r)
+         collect 1 into blist
+       else
+	 if (mtimesp x) ; term x is a product
+           if (setq b (split_product x r)) ; x = b*r
+             collect b into blist
+           else
+	     collect x into alist
+         else
+           collect x into alist
+     finally
+       (return `((mlist) ,(apply #'add alist) ,(apply #'add blist)
+		     ,(power r 2))))))  
+
+;;; extract factor(s?) with maximum depth d from product p
+;;; d is maximum sqrt depth of terms in p
+;;;
+;;; Does (maximum-depth-term ('$x 2) => '$x make sense?
+;;;
+;;; This requires further investigation.  Should this return all factors
+;;; of maximum depth, or just one.  If so, which one?
+;;; Look at references for clue.
+(defun maximum-depth-term (p d) 
+  (if (mtimesp p)
+      ;; p is a product. return product of factors with depth=d
+      (loop
+       for x in (rest p)
+       if (= ($_sqrt_depth x) d) collect x into xlist
+       finally (if xlist
+		 (return (apply #'mul xlist))
+		 (merror "maximum-depth-term: giving up for p: ~a" p)))
+      ;; p is not a product.  return p
+      p))
+
+
+;;; p is a product
+;;; If r is a factor of p, return b where p = b*r
+;;; Otherwise return nil
+;;;
+;;; r may be a product.  Each of the factors of r must be a factor of p.
+(defun split_product (p r)
+  (if (not (mtimesp p)) (merror "split_product: not a product ~a" p))
+  (loop ; over rf, the factors of r
+   with plist = (rest p) ; factors of p
+   for rf in (if (mtimesp r) (rest r) (list r))
+   ;; immediately return nil if rf not a factor of p
+   always (member rf plist :test #'alike1)
+   ;; remove rf from plist
+   do (setq plist (remove rf plist :test #'alike1 :count 1))
+   finally (return (apply #'mul plist))))
+
+;;; SPLIT_GCD (A)    Note: lists are maxima lists
+;;;
+;;; Splits the list of integers a into two lists of integers, a1 and a2,
+;;; such that a1 have a common divisor g=gcd(a1) and the integers in a2
+;;; are not divisible by g.
+;;; The result is returned as maxima list [g, a1, a2].
+;;;
+;;; Example:
+;;;
+;;; (%i1)   ?split_gcd([55, 35, 22, 14, 77, 10]);
+;;; (%o2)   [5, [55, 35, 10], [22, 14, 77]]
+;;;
+(defmfun $_split_gcd (a)  
+  (loop
+   with g=nil
+   for x in (rest a) ; all elements in maxima list a
+   for g1 = x then ($gcd g x)
+   if (= g1 1) collect x into a2
+   else collect x into a1 and do (setq g g1)
+   finally (return `((mlist) ,g ((mlist) ,@a1) ((mlist) ,@a2)))))
+
+
+;;; split_surds (expr)
+;;;
+;;; Splits a sum with terms whose squares are rationals
+;;; into a sum of terms a whose surds squared have gcd equal to g
+;;; and a sum of terms b with surds squared prime with g.
+;;;
+;;; expr is a simplified sum. Consequently at least one term must be a surd.
+;;; Otherwise expr would have been simplified to a rational.
+;;;
+;;; return maxima list [g,a,b] with expr = a*sqrt(g) + b
+;;;
+;;; Example:
+;;;
+;;; (%i1)   _split_surds(3*sqrt(3)+sqrt(5)/7+sqrt(6)+sqrt(10)+sqrt(15))
+;;; (%o1)   [3, sqrt(2) + sqrt(5) + 3, sqrt(5)/7 + sqrt(10)]
+;;;
+(defmfun $_split_surds (expr)
+  (if (not (mplusp expr)) (merror "split_surds: arg not a sum"))
+  (let (args coeff_muls surds result g b1 b2)
+    (setq args (rest ($rootscontract expr)))
+    ;(format t "split_surds: args = ~a~%" args) ; args is lisp list
+    (setq coeff_muls (mapcar #'$_splitcoef args))
+    ;(format t "split_surds: coeff_muls = ~a~%" coeff_muls)
+    ;; 
+    (loop
+     for (op c s) in coeff_muls
+     ;do (format t "c: ~a s: ~a~%" c s)
+     if ($_sqrtp s) collect (power s 2) into surds
+     finally
+       ;(format t "surds: ~a~%" surds)
+       (setq result ($_split_gcd `((mlist) ,@(sort surds #'<)))))
+    ;(format t "result: ~a~%" result)
+    (setq g (second result))
+    (setq b1 (third result))
+    (setq b2 (fourth result))
+    ;(format t "g: ~a~%" g)
+    ;(format t "b1: ~a~%" b1)
+    ;(format t "b2: ~a~%" b2)
+    ;; If list b2 is empty and b1 has more than one element
+    ;; then search for a larger common factor in b1
+    (if (and (null (second b2)) (third b1))
+	(loop
+	 for x in (rest b1)
+	 if (not (alike1 x g)) collect (div x g) into list
+	 finally (destructuring-bind
+		  (op g1 junk1 junk2)
+		  ($_split_gcd `((mlist) ,@list))
+		  (setq g (mul g g1)))))
+    ;; split original terms into lists for a and b
+    (loop
+     with radicand
+     for (op c s) in coeff_muls
+     ;do (format t "c: ~a s: ~a~%" c s)
+     if (and ($_sqrtp s) (member (setq radicand (second s)) (rest b1)))
+       ;do (format t "collect into alist~%") and
+       collect (mul c (root (div radicand g) 2)) into alist
+     else
+       ;do (format t "collect into blist~%")
+       collect (mul c s) into blist
+     finally
+       (return `((mlist) ,g ,(apply #'add alist) ,(apply #'add blist))))))
