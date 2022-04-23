@@ -1,3 +1,145 @@
+#|
+Most of the code in this Maxima package is a rather direct port of Sympy's
+denesting code:
+http://docs.sympy.org/1.0/_modules/sympy/simplify/sqrtdenest.html
+http://docs.sympy.org/1.0/_modules/sympy/simplify/radsimp.html
+The code is licensed under the GPL-compatible "3-clause BSD license".
+
+**************************************************************************
+Copyright (c) 2006-2017 SymPy Development Team (original code)
+Copyright (c) 2017 Gilles Schintgen (Maxima port and extensions)
+Copyright (c) 2021 David Billinghurst (Translation to maxima/lisp)
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+  a. Redistributions of source code must retain the above copyright notice,
+     this list of conditions and the following disclaimer.
+  b. Redistributions in binary form must reproduce the above copyright
+     notice, this list of conditions and the following disclaimer in the
+     documentation and/or other materials provided with the distribution.
+  c. Neither the name of SymPy nor the names of its contributors
+     may be used to endorse or promote products derived from this software
+     without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+DAMAGE.
+**************************************************************************
+
+RADDENEST
+
+This package denests different classes of expressions with nested
+roots. Most of the algorithms are specific to square roots, but some
+handle higher roots.
+
+The implemented algorithms are documented in the following articles:
+
+[1] Allan Borodin, Ronald Fagin, John E. Hopcroft, and Martin Tompa:
+    "Decreasing the Nesting Depth of Expressions Involving Square Roots"
+    J. Symbolic Computation (1985) 1, 169-188
+    http://researcher.watson.ibm.com/researcher/files/us-fagin/symb85.pdf
+
+[2] David J. Jeffrey and Albert D. Rich:
+    "Symplifying Square Roots of Square Roots by Denesting"
+    in "Computer Algebra Systems: A Practical Guide",
+    M.J. Wester, Ed., Wiley 1999
+    http://www.cybertester.com/data/denest.pdf
+
+[3] Thomas J. Osler:
+    "Cardan Polynomials and the Reduction of Radicals"
+    Mathematics Magazine 74(1), Feb. 2001
+    http://www.rowan.edu/open/depts/math/osler/mathmag026-032.pdf
+
+[4] Mascha Honsbeek:
+    "Radical Extensions and Galois Groups", Chapter 3
+    (PhD Thesis)
+    http://www.math.kun.nl/~bosma/students/honsbeek/M_Honsbeek_thesis.pdf
+
+As such, the raddenest function should be able to denest some or all
+of the denestable expressions of the following types:
+
+* square roots of sums of (multiple) unnested square roots
+    (_sqrtdenest_rec)
+
+* expressions of the form sqrt(a + b*sqrt(r)) that denest using square
+    roots can be denested numerically or symbolically
+    (_sqrt_symbolic_denest)
+
+* expressions of the form sqrt(a + b*sqrt(r)) where a, b, and r are
+    linear combinations of square roots of positive rationals
+    (_sqrt_biquadratic_denest)
+
+* expressions of the form sqrt(a + b*sqrt(r)) that can be denested
+    using fourth roots
+
+* n-th roots of a+b*sqrt(r)
+    (_rad_denest_cardano)
+
+* square roots of a sum of two cube roots
+    (_rad_denest_ramanujan)
+
+
+INTERPRETATION OF RADICAL EXPRESSIONS
+
+In general a^(1/n) has n different values.
+
+However Maxima always simplifies such numeric expressions for positive
+real 'a' and for negative real 'a' in case of a square root:
+    sqrt(-4)=2*%i, 8^(1/3)=2
+This is independent of the global 'domain' variable.
+
+With domain=complex Maxima no longer simplifies a^(1/n) for negative
+real 'a'. It will only factor out (-1)^(1/n) which is then treated
+according to the global variable m1pbranch. It also no longer simplifies
+sqrt(x^2).
+
+Raddenest should give results that are consistent with the above.
+
+Example:
+    (2-sqrt(5))^(1/3) = 1/2-sqrt(5)/2
+This denesting is only performed when domain=real and the cube root
+is interpreted as a real-valued function over the reals.
+
+
+IMPLEMENTATION NOTES
+
+Functions whose names begin with an underscore are internal helper
+functions. As such the only user-level function is the main command
+"raddenest".
+
+raddenest and _raddenest0 are relatively simple wrapper functions that
+apply the various algorithm functions to the given expression and its
+subexpressions.
+
+POSSIBLE IMPROVEMENTS AND FURTHER READING
+
+[5] Richard Zippel:
+    "Simplification of Expressions Involving Radicals"
+    J. Symbolic Computation (1985) 1, 189-210
+    http://www.sciencedirect.com/science/article/pii/S0747717185800146
+
+[6] Susan Landau:
+    "Simplification of Nested Radicals"
+    1993
+    https://www.researchgate.net/publication/2629046_Simplification_of_Nested_Radicals
+
+[7] Johannes Blömer:
+    "Simplifying Expressions Involving Radicals"
+    PhD Thesis, 1993
+    http://www.cs.nyu.edu/exact/pap/rootBounds/sumOfSqrts/bloemerThesis.pdf
+|#
+
 
 
 ;;; Probably want a predicate that is true when
