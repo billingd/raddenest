@@ -632,19 +632,23 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 ;;; Denesting functions                                                 ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; Call maxima function raddenest - SHIM FUNCTION DURING CONVERSION
-;;;
+;;; SHIM FUNCTION DURING CONVERSION
+
 (defun raddenest (expr &optional (max_iter 3))
   (simplify (mfunction-call $raddenest expr max_iter)))
 
-;;; Call maxima function _sqrtdenest1 - SHIM FUNCTION DURING CONVERSION
-;;;
 ;;; There is existing function sqrtdenest1 in src/sqrtdenest.lisp
 (defun _sqrtdenest1 (expr denester)
   (simplify (mfunction-call $_sqrtdenest1 expr denester)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; raddenest goes here
+
+
+;;; _raddenest0 goes here
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; sqrtdenest_rec (expr)
@@ -738,6 +742,13 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
       (setq r (div ($expand (add (mul d sqrt2) (mul r sqrt2))) 2))
       (setq r ($rootscontract ($ratsimp r)))
       ($expand r)))) ; return r, or result from return-from above
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;; _sqrtdenest1 goes here
+
+;;; _sqrt_symbolic_denest goes here
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -853,9 +864,7 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; denester goes here
-
-
+;;; _denester goes here
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
