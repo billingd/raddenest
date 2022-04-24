@@ -445,7 +445,153 @@ block([domain:'complex],assume(x>0),
 raddenest(sqrt(-4*log(3)*sqrt(3*x+sqrt(3))+12*x+log(3)^2+4*sqrt(3))));
 sqrt((sqrt(4*sqrt(3)+12*x)-log(3))^2)$
 
+/* Tests added during development of lisp code */
+
+_complexity(1);
+0$
+
+_complexity(1/2);
+0$
+
+_complexity(sqrt(2));
+1$
+
+_complexity(sqrt(2)+sqrt(3));
+2$
+
+_sqrt_match(55-10*sqrt(29));
+[55,-10,29]$
+
+_split_surds(1+sqrt(2));
+[2,1,1]$
+
+_split_surds(1+1/sqrt(2));
+[2,1/2,1]$
+
+_split_surds(1+sqrt(2)+sqrt(3));
+[2,1,sqrt(3)+1]$
+
+_split_surds(1+sqrt(2)+sqrt(6));
+[6,1/sqrt(3)+1,1]$
+
+_split_surds(15/sqrt(2)+103/4);
+[2,15/2,103/4]$
+
+_sqrt_match(15/sqrt(2));
+[0,15/2,2];
+
+/* To match maxima implemetation. Previous lisp code only
+   returned one factor of maximum depth in g */
+_sqrt_match(4*sqrt(sqrt(3)+1)*3^(3/2)*sqrt(3^(3/2)+3)
+ +20*sqrt(sqrt(3)+1)*sqrt(3^(3/2)+3)+64*sqrt(3)+112);
+[64*sqrt(3)+112,4*3^(3/2)+20,(sqrt(3)+1)*(3^(3/2)+3)];
+
+_sqrt_numeric_denest(168,96,3,576);
+4*sqrt(6)+3*2^(3/2);
+
+_sqrt_numeric_denest(324,162,3,26244);
+3^(5/2)+9;
+
+_sqrt_numeric_denest(432,216,3,46656);
+2*3^(3/2)+18;
+
+_sqrt_numeric_denest(144,72,3,5184);
+2*3^(3/2)+6;
+
+_sqrt_numeric_denest(12,6,3,36);
+sqrt(3)+3;
+
+
+/* Examples from Osler p 27
+
+  Explicitly call _rad_denest_cardano then exisiting sqrtdenest if required
+
+*/
+
+y:_rad_denest_cardano(x:(2+sqrt(5))^(1/3));
+sqrt(5)/2+1/2;
+is (abs(float(x-y))<1e-15);
+true;
+
+y:_rad_denest_cardano(x:(2-sqrt(5))^(1/3));
+1/2-sqrt(5)/2;
+is (abs(float(x-y))<1e-15);
+true;
+
+/* Osler has a sign error for this */
+y:_rad_denest_cardano(x:(9+4*sqrt(5))^(1/6));
+sqrt(sqrt(5)+3)/sqrt(2);
+y:expand(sqrtdenest(%));
+sqrt(5)/2+1/2;
+is (abs(float(x-y))<1e-15);
+true;
+
+/* Osler has a sign error for this */
+y:_rad_denest_cardano(x:(9-4*sqrt(5))^(1/6));
+sqrt(3-sqrt(5))/sqrt(2);
+y:expand(sqrtdenest(%));
+sqrt(5)/2-1/2;
+is (abs(float(x-y))<1e-15);
+true;
+
+y:_rad_denest_cardano(x:(38+17*sqrt(5))^(1/9));
+sqrt(5)/2+1/2;
+is (abs(float(x-y))<1e-15);
+true;
+
+y:_rad_denest_cardano(x:(38-17*sqrt(5))^(1/9));
+1/2-sqrt(5)/2;
+is (abs(float(x-y))<1e-14);
+true;
+
+y:_rad_denest_cardano(x:(7+5*sqrt(2))^(1/3));
+sqrt(2)+1;
+is (abs(float(x-y))<1e-15);
+true;
+
+y:_rad_denest_cardano(x:(7-5*sqrt(2))^(1/3));
+1-sqrt(2);
+is (abs(float(x-y))<1e-15);
+true;
+
+y:_rad_denest_cardano(x:(41+29*sqrt(2))^(1/5));
+sqrt(2)+1;
+is (abs(float(x-y))<1e-15);
+true;
+
+y:_rad_denest_cardano(x:(41-29*sqrt(2))^(1/5));
+1-sqrt(2);
+is (abs(float(x-y))<1e-13); /* larger tolerance */
+true;
+
+y:_rad_denest_cardano(x:(99+70*sqrt(2))^(1/6));
+sqrt(2^(5/2)+6)/sqrt(2);
+y:expand(sqrtdenest(y));
+sqrt(2)+1;
+is (abs(float(x-y))<1e-15);
+true;
+
+/* Osler has a sign error for this */
+y:_rad_denest_cardano(x:(99-70*sqrt(2))^(1/6));
+sqrt(6-2^(5/2))/sqrt(2);
+y:expand(sqrtdenest(y));
+sqrt(2)-1; 
+is (abs(float(x-y))<1e-12); /* larger tolerance */
+true;
+
+/* Unit tests for rad_denest_ramanujan */
+_rad_denest_ramanujan(sqrt(5^(1/3)-4^(1/3)));
+-((25^(1/3)-20^(1/3)-2^(1/3))/3);
+
+_rad_denest_ramanujan(sqrt(28^(1/3)-3));
+(98^(1/3)-28^(1/3)-1)/3;
+
+_rad_denest_ramanujan(sqrt(3-28^(1/3)));
+((98^(1/3)-28^(1/3)-1)*%i)/3;
+
+
+
 /* clean up */
-(forget(x>0,y>0),kill(w,a,b,r,rad,z,d2,e,n,d,ra),'done);
+(forget(x>0,y>0),kill(w,a,b,r,rad,x,y,z,d2,e,n,d,ra),'done);
 'done$
 
