@@ -7,5 +7,5 @@
 load("./raddenest.mac");
 load("./raddenest.lisp");
 file_search_tests: ["./$$$.mac"];
-testsuite_files:["rtest_raddenest.mac"];
-run_testsuite(display_all=false, tests=["rtest_raddenest.mac"]);
+testsuite_files:["rtest_raddenest.mac","rtest_raddenest2.mac"];
+run_testsuite(display_all=false, tests=testsuite_files);
