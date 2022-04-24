@@ -748,7 +748,145 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 
 ;;; _sqrtdenest1 goes here
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 ;;; _sqrt_symbolic_denest goes here
+;;; Given an expression, sqrt(a + b*sqrt(r)), return the denested
+;;; expression or false.  This function uses the facts database
+;;; for comparisons to allow denesting of symbolic expressions.
+;;;
+;;; Algorithm 1: standard denesting formula with d2=a^2-b^2*r
+;;;              requires a>=0 and r>=0
+;;; Algorithm 2: From sympy
+;;;
+(defmfun $_sqrt_symbolic_denest(a b r)
+  (let (result)
+    ;; try Algorithm 1
+    (if	(setq result (sqrt_symbolic_denest_1 a b r))
+      result
+      ;; Didn't succeed - try algorithm 2
+      (sqrt_symbolic_denest_2 a b r))))
+
+;;; Given an expression, sqrt(a + b*sqrt(r)), return the denested
+;;; expression or false.
+;;;
+;;; Algorithm 1:
+;;; Check if the standard denesting formula with d2=a^2-b^2*r
+;;; can the applied, i.e. check if d2=a^2-b^2*r is a square.
+;;; For a+b*sqrt(r) = (c+d*sqrt(r))^2, a=c^2+b^2*r and
+;;; a^2-b^2*r = d^4*r^2-2*c*d^2*r+c^4, quadratic in r.
+;;; -> Compute the discriminant.
+;;; a and r must be positive; hence denesting depends on the
+;;; facts database.
+;;;
+;;; Examples (alg. 1):
+;;; ==================
+;;; (%i2) raddenest(sqrt(9*y+6*x^2*sqrt(y)+x^4));
+;;; (%o2)                    sqrt(9*y + 6*x^2  sqrt(y) + x^4)
+;;; (%i3) assume(y>0)$
+;;; (%i4) raddenest(sqrt(9*y+6*x^2*sqrt(y)+x^4));
+;;; (%o4)                           3* sqrt(y) + x^2
+;;;
+;;; y is a gensym with assume(y>0) in fact database.
+;;;
+(defun sqrt_symbolic_denest_1 (a b r)
+  (let ((y ($gensym)) ; maxima gensym. assume y>0 
+	(newcontext ($supcontext)) ; new context for working facts
+	ca cb cc d d2 discriminant s (z nil))
+    (assume `((mgreaterp) ,y 0)) ; assume(y>0)
+    (when (and (my-mgeqp r 0) ;; r>=0
+	       (my-mgeqp ($ratsubst y r a) 0)) ; a>=0
+      ;; Is d2=a^2-b^2*r a square?  Check if discriminant = 0.
+      (setq d2 ($ratsubst y r (sub (pow a 2) (mul (pow b 2) r))))
+      (when (alike1 ($hipow d2 y) 2)
+        (setq ca ($ratcoef d2 y 2)) ; d2 = ca*y^2 + cb*y + cc
+          (when ($ratnump (root ca 2))	
+	    (setq cb ($ratcoef d2 y 1))
+	    (setq cc ($ratcoef d2 y 0))
+	    (setq discriminant (sub (pow cb 2) (mul 4 ca cc))) ;cb^2-4*ca*cc
+	    (when (alike1 discriminant 0)
+	      ;; If discriminant is 0, polynomial d2 can be factored
+	      ;; as a perfect square. sqrt(d2) = d = sqrt(ca)*(r+cb/(2*ca))
+	      (setq d (mul (root ca 2) (add r (div cb (mul 2 ca)))))
+	      ;; If b is of constant sign (>=0 or <=0), a denesting
+	      ;; should not be rejected simply because b could be zero
+	      ;; for isolated values of the involved variables.
+	      (assume `(($notequal) ,b 0)) ; assume(notequal(b,0))
+	      (setq s ($signum b)) ; only accept s = signum(b) = +/- 1
+	      (when (or (equal s 1) (equal s -1))
+		;; z = sqrt(a/2+d/2)+signum(b)*sqrt(a/2-d/2)
+		(setq z (add (root (add (div a 2) (div d 2)) 2)
+       			     (mul s (root (sub (div a 2) (div d 2)) 2))))
+		(setq z ($ratsimp z)))))))
+    ;; tidy up and return z (which is nil if denesting is unsuccessful)
+    (killcontext newcontext)
+    z))
+
+;;; Given an expression, sqrt(a + b*sqrt(r)), return the denested
+;;; expression or false.
+;;;
+;;; Algorithm 2 (Sympy):
+;;; If r = ra + rb*sqrt(rr), try replacing sqrt(rr) in 'a' with
+;;; (y^2 - ra)/rb, and if the result is a quadratic, ca*y^2 + cb*y + cc, and
+;;; (cb + b)^2 - 4*ca*cc is 0, then sqrt(a + b*sqrt(r)) can be rewritten as
+;;; sqrt(ca*(sqrt(r) + (cb + b)/(2*ca))^2).
+;;;
+;;; Examples (alg. 2):
+;;; ==================
+;;;
+;;; (%i1)   [a,b,r]: [16-2*sqrt(29), 2, -10*sqrt(29)+55]$
+;;; (%i2)   _sqrt_symbolic_denest(a, b, r);
+;;; (%o2)   sqrt(-2*sqrt(29) + 11) + sqrt(5)
+;;;
+;;; If the expression is numeric, it will be simplified:
+;;;
+;;; (%i3)   w: sqrt(sqrt(sqrt(3) + 1) + 1) + 1 + sqrt(2)$
+;;; (%i4)   [a,b,r]: _sqrt_match(expand(w^2))$
+;;; (%i5)   _sqrt_symbolic_denest(a,b,r);
+;;; (%o5)   sqrt(sqrt(sqrt(3)+1)+1)+sqrt(2)+1
+;;;
+;;; Otherwise, it will be simplified depending on the value of
+;;; the global "domain" variable:
+;;;
+;;; (%i6)   w: sqrt(expand((sqrt(1-sqrt(x))-1)^2));
+;;; (%o6)   sqrt(-sqrt(x)-2*sqrt(1-sqrt(x))+2)
+;;; (%i7)   [a,b,r]: _sqrt_match(w^2)$
+;;; (%i8)   _sqrt_symbolic_denest(a,b,r), domain:'real;
+;;; (%o8)   abs(sqrt(1-sqrt(x))-1)
+;;; (%i9)   _sqrt_symbolic_denest(a,b,r), domain:'complex;
+;;; (%o9)   sqrt((sqrt(1-sqrt(x))-1)^2)
+;;;
+(defun sqrt_symbolic_denest_2 (a b r)
+  (let ((rval ($_sqrt_match r)) (z nil))
+    (when rval ; rval:[ra,rb,rr] (or nil) where r = sqrt(ra+rb*srqt(rr))
+    (let ((ra (second rval))
+	  (rb (third rval))
+	  (rr (fourth rval))
+	  (y ($gensym))
+	  (newcontext ($supcontext)) ; new context for working facts
+	  newa ca cb cc discriminant)
+      (unless (alike1 rb 0)
+	(assume `((mgreaterp) ,y 0)) ; assume(y>0)
+	;; newa = subst((y^2-ra)/rb,sqrt(rr),a)
+	(setq newa
+	      ($substitute (div (sub (pow y 2) ra) rb)
+			   (root rr 2)
+			   a))
+	(when (equal ($hipow newa y) 2) ; newa is quadratic in y
+	  (setq ca ($ratcoef newa y 2))
+	  (setq cb ($ratcoef newa y 1))
+	  (setq cc ($ratcoef newa y 0))
+	  (setq cb (add cb b)) ; cb = cb+b,
+	  ;; discriminant = cb^2-4*ca*cc
+	  (setq discriminant (sub (pow cb 2) (mul 4 ca cc)))
+	  (setq discriminant ($expand discriminant))
+	  (when (alike1 discriminant 0)
+	    ;; z = sqrt(ca*(sqrt(r)+cb/(2*ca))^2)
+	    (setq z (root (mul ca (pow (add (root r 2) (div cb (mul 2 ca))) 2)) 2))
+	    (if ($constantp z) (setq z ($rootscontract ($expand z)))))))
+      (killcontext newcontext)))
+    z))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
