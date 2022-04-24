@@ -1,0 +1,153 @@
+/* test_raddenest2.mac
+
+  test new functions in lisp implementation of raddenest
+  These function are not defined in raddenest.mac
+
+  Comments are from the code, so keep them synchronized.
+  
+ */
+
+/*
+;;; sqrtratp (x)   equivalent to maxima ratnump(x^2)
+;;; if expression x is:
+;;;   maxima rational => t
+;;    other (non-integer) atom => nil
+;;;   product => recurse over terms with nested unchanged
+;;;   sum => recurse over terms with nested t
+;;;   sqrt => recurse into first arg with nested t
+;;;   other => nil
+;;;
+;;; ?sqrtratp(sqrt(2))         => true
+;;; ?sqrtratp(1+sqrt(2))       => false
+;;; ?sqrtratp(sqrt(1+sqrt(2))) => false
+;;; ?sqrtratp(sqrt(2)*3)       => true
+;;; ?sqrtratp(15/sqrt(2))      => true
+;;;
+;;; FIXME: what to do about sqrt(-2)?
+ */
+ 
+?sqrtratp(1)$
+true;
+
+?sqrtratp(1/2)$
+true;
+
+?sqrtratp(sqrt(2))$
+true;
+
+?sqrtratp(1+sqrt(2))$
+false;
+
+?sqrtratp(3*sqrt(2))$
+true;
+
+?sqrtratp(sqrt(3)*sqrt(2))$
+true;
+
+?sqrtratp(sqrt(sqrt(2)))$
+false;
+
+?sqrtratp(sqrt(1+sqrt(2)))$
+false;
+
+?sqrtratp(x);
+false;
+
+?sqrtratp(3^(1/3))$
+false;
+
+?sqrtratp(3^(2/3))$
+false;
+
+?sqrtratp(3^(3/2))$
+true;
+
+?sqrtratp(1+sqrt(2)+sqrt(3))$
+false;
+
+?sqrtratp(15/sqrt(2))$
+true;
+
+/*
+;;; p is a product
+;;; If r is a factor of p, return b where p = b*r
+;;; Otherwise return nil
+;;;
+;;; r may be a product.  Each of the factors of r must be a factor of p.
+ */
+
+?split_product(2*x,sqrt(2))$
+false;
+
+?split_product(3*sqrt(2),sqrt(2))$
+3;
+
+?split_product(3*sqrt(2),sqrt(3))$
+false;
+
+/*
+;;; extract factor(s?) with maximum depth d from product p
+;;; d is maximum sqrt depth of terms in p
+;;;
+;;; Does (maximum-depth-term ('$x 2) => '$x make sense?
+;;;
+;;; This requires further investigation.  Should this return all factors
+;;; of maximum depth, or just one.  If so, which one?
+;;; Look at references for clue.
+ */
+
+/* does this function make sense? */
+?maximum\-depth\-term((1+2*sqrt(5))*sqrt(2),1)$
+sqrt(2)*(1+2*sqrt(5));
+
+?maximum\-depth\-term((1+2*sqrt(2))*sqrt(1+sqrt(3)),2);
+sqrt(1+sqrt(3));
+
+?maximum\-depth\-term(x,2);
+x;
+
+/*
+;;; Use the rational root theorem to return a rational root of
+;;; an nth degree polynomial with integer coefficients.
+;;; Return nil if no rational root exists.
+;;;
+;;;  p(x) is a maxima expression = ak*x^k + ... + a2*x^2 + a1*x + a0
+;;;
+;;; Each rational solution x = n/m with n and m relatively prime satisfies
+;;; - n is an integer factor of a0
+;;; - m is an integer factor of ak
+;;;
+ */
+
+?one\-rational\-root\-poly(x^4-1,x,4);
+-1;
+
+?one\-rational\-root\-poly(3*x+2,x,1);
+(-2)/3;
+
+?one\-rational\-root\-poly(x^4+1,x,4);
+false;
+
+?one\-rational\-root\-poly(expand((2*x-5)*(x^2-3)*(x-3)),x,4);
+5/2;
+
+/*
+;;; expr=sqrt(alpha^(1/3)+beta^(1/3)) with alpha and beta rational
+;;;
+;;; Return maxima list [alpha,beta], or raise maxima error on failure.
+;;;
+;;; Just a hack for now.  May not match more complicated forms.
+ */
+
+?match\-sqrt\-of\-cbrts(sqrt(2^(1/3)+3^(1/3)));
+[2,3];
+
+?match\-sqrt\-of\-cbrts(sqrt(2^(1/3)-3^(1/3)));
+[2,-3];
+
+/* Is this the desired behaviour?  Time and testing will tell. */  
+?match\-sqrt\-of\-cbrts(sqrt(3-6^(1/3)));
+[27,-6];
+
+?match\-sqrt\-of\-cbrts(sqrt(3-28^(1/3)));
+[27,-28];
