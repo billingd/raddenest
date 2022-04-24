@@ -432,7 +432,7 @@ raddenest((41-29*sqrt(2))^(1/5));
 raddenest((375308427136/390625-(9950503296*sqrt(29))/78125)^(1/8));
 (5*sqrt(29)-3)/5$
 
-/* additional symbolic capabalities */
+/* additional symbolic capabilities */
 
 (assume(y>0),raddenest(sqrt(9*y+6*x^2*sqrt(y)+x^4)));
 3*sqrt(y)+x^2$
@@ -589,9 +589,6 @@ _rad_denest_ramanujan(sqrt(28^(1/3)-3));
 _rad_denest_ramanujan(sqrt(3-28^(1/3)));
 ((98^(1/3)-28^(1/3)-1)*%i)/3;
 
-
-
 /* clean up */
-(forget(x>0,y>0),kill(w,a,b,r,rad,x,y,z,d2,e,n,d,ra),'done);
+(kill(w,a,b,r,rad,x,y,z,d2,e,n,d,ra),forget(x>0,y>0),'done);
 'done$
-
