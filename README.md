@@ -1,4 +1,10 @@
 # raddenest
+
+## This fork 
+
+This repository is forked from gschintgen/raddenest.  The original code is in the maxima language.  I am translating it to lisp for use within maxima - see raddenest-lisp.md.  
+
+## Original
 A Maxima package for denesting radical expressions
 
 Most of the code in this Maxima package is a rather direct port of Sympy's
