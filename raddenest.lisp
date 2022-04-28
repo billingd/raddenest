@@ -893,9 +893,20 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 
 ;;; sqrt_numeric_denest (a,b,r,d2)
 ;;;
-;;; Helper that denest expr = a + b*sqrt(r),
-;;; with d2 = a^2 - b^2*r > 0
-;;; or returns false if not denested.
+;;; Denest expr = a + b*sqrt(r), where d2 = a^2 - b^2*r > 0
+;;; Return false if not denested.
+;;;
+;;; Borodin et al (1985) Theorem 1
+;;; A formula of depth 2 over a field K can be denested using a
+;;; square root of r when d = sqrt(a^2 - b^2*r) is an element of K.
+;;;
+;;; Borodin et al (1985) Theorem 2
+;;; A formula of depth 2 over a field K can be denested using a
+;;; fourth root of r when sqrt(r(b^2*r-a^2)) is an element of K.
+;;;
+;;; Borodin et al (1985) Theorem 3
+;;; Roots other than square roots and fourth roots don't help if all roots are real.
+;;;
 (defmfun $_sqrt_numeric_denest (a b r d2)
    (let (($algebraic t) d depthr s vad vad1)
     (setq depthr ($_sqrt_depth r))
@@ -904,7 +915,7 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
     ;; sqrt_depth(res) <= sqrt_depth(vad) + 1
     ;; sqrt_depth(expr) = depthr + 2
     ;; There is denesting if sqrt_depth(vad)+1 < depthr + 2
-    ;; If vad^2 is a rational there is a fourth root
+    ;; If vad^2 is a rational there is a fourth root denesting
     (if (or (< ($_sqrt_depth vad) (+ depthr 1)) ($ratnump(pow vad 2)))
 	(progn
 	  (setq s ($signum b))
@@ -1003,6 +1014,42 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; _denester goes here
+
+;;; product_is_square (terms subset)
+;;;
+;;; terms is a maxima list of rational numbers with $numberp(term)=true
+;;; subset is a maxima list of 0s and 1s
+;;; Is the product of terms in nested given by subset=1 a perfect square?
+;;; If so, return val = sqrt(product), otherwise nil
+(defun product_is_square (terms subset)
+  (let (product val)
+    (loop
+     for term in (rest terms) ; maxima list
+     for f in (rest subset)   ; maxima list
+     if (= f 1) collect term into p
+     finally
+       (setq product (apply #'mul p)) ; product of terms in subset
+       (setq val (root product 2))  ; sqrt(product)
+       (when ($ratnump val) (return val)))))
+
+;;; find_square_product (terms)
+;;;
+;;; Given a (maxima) list term of n rationals, find a subset whose
+;;; product is a perfect square val^2 for rational val.
+;;;
+;;;Return maxima list [val,subset] or false/nil if no match
+;;;   val - value of square root of product of selected terms
+;;;   subset - maxima list of 0s and 1s denoting subset chosen
+;;;
+;;; Borodin (1985), Section 3 has a more sophisticated approach.
+(defun find_square_product (terms)
+  (let ((n (length (rest terms))) val) ; terms is a maxima list
+    (loop
+     for subset in (rest ($_subsets n))
+     do
+       (setq val (product_is_square terms subset))
+       when val
+         return `((mlist) ,val ,subset))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
