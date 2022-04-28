@@ -165,5 +165,33 @@ false$
 ?sqrt_symbolic_denest_2(16-2*sqrt(29), 2, -10*sqrt(29)+55);
 sqrt(-2*sqrt(29) + 11) + sqrt(5)$
 
+/* Unit tests for find_square_product and product_is_square */
+?product_is_square([1,2,2],[0,1,1]);
+2$
+
+?product_is_square([3,4,1],[0,1,1]);
+2$
+
+?product_is_square([3,sqrt(2),sqrt(8)],[0,1,1]);
+2$
+
+?product_is_square([3,sqrt(2),sqrt(8)],[1,1,1]);
+false$
+
+?find_square_product([3,6,2]);
+[6,[1,1,1]]$
+
+?find_square_product([3,6,5]);
+false$
+
+?find_square_product([1/4,6,5]);
+[1/2,[1,0,0]];
+
+?find_square_product([1/2,1/3,1/8]);
+[1/4,[1,0,1]]$
+
+?find_square_product([1/3,6,5]);
+false;
+
 (kill(a,b,r), forget(y>0), done);
 done$
