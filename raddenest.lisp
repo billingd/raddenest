@@ -634,17 +634,27 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 
 ;;; SHIM FUNCTION DURING CONVERSION
 
-(defun raddenest (expr &optional (max_iter 3))
-  (simplify (mfunction-call $raddenest expr max_iter)))
-
 ;;; There is existing function sqrtdenest1 in src/sqrtdenest.lisp
 (defun _sqrtdenest1 (expr denester)
   (simplify (mfunction-call $_sqrtdenest1 expr denester)))
 
+(defun raddenest0 (expr)
+  (simplify (mfunction-call $_raddenest0 expr)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; raddenest goes here
+
+;;; Denests sqrts in an expression that contain other square roots
+;;; if possible, otherwise returns the expr unchanged.
+(defmfun $raddenest (expr &optional (max_iter 3))
+  (let (($algebraic t)
+	($rootsconmode nil))
+    (loop
+     for z = ($_sqrtcontract (raddenest0 expr))
+     repeat max_iter ; repeat must follow for (clisp complains)
+     until (alike1 expr z)
+     do (setq expr z)
+     finally (return expr))))
 
 
 ;;; _raddenest0 goes here
@@ -681,7 +691,7 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 	r ; radicand
 	g a b c ac d val)
     (block rec
-      (unless (mexptp expr) (return-from rec (raddenest expr)))
+      (unless (mexptp expr) (return-from rec ($raddenest expr)))
       ;; what if exponent is not 1/2, say 3/2 or -1/2
       ;; check and raise error.  Deal with it later.
       (unless ($_sqrtp expr)
@@ -735,7 +745,7 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 		     ($_complexity r)))
 	($throw "raddenestStopIteration"))
       
-      (setq d (raddenest (root ac 2)))
+      (setq d ($raddenest (root ac 2)))
       (when (> ($_sqrt_depth d) 1) ($throw "raddenestStopIteration"))
       (setq r (div b d)) ; r = b/d  NOTE: r has been repurposed
       (setq r ($rootscontract ($expand ($ratsimp r))))
@@ -992,14 +1002,14 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
           for y2 = (pow y 2)
 	    if (or (not (integerp y2)) (mnegp y2))
 	    do (return-from biquad)))
-      (setq sqd (raddenest (root d2 2)))
+      (setq sqd ($raddenest (root d2 2)))
       (if (> ($_sqrt_depth sqd) 1) (return-from biquad))
       (setq x1 (add (div a 2) (div sqd 2))) ; a/2+sqd/2
       (setq x2 (sub (div a 2) (div sqd 2))) ; a/2-sqd/2
       ;; look for a solution A with depth 1
       (loop
        for x in (list x1 x2)
-       for A_ = (raddenest (root x 2))
+       for A_ = ($raddenest (root x 2))
        when (<= ($_sqrt_depth A_) 1)
        do
          (setq B_ (div b (mul 2 A_))) ; B = b/(2*A)
