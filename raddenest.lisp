@@ -738,8 +738,8 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
             (when val (return-from $_raddenest0 (pow val ex))))
 	  ;; argument is sum of two cube roots of rationals
 	  (when (and (eql (length ar) 2)
-		     ($ratnump (root (first ar) 3))
-		     ($ratnump (root (second ar) 3)))
+		     ($ratnump (pow (first ar) 3))
+		     ($ratnump (pow (second ar) 3)))
 	    (format t "raddenest0: sum of two cube roots branch~%")
 	    (setq val ($_rad_denest_ramanujan (root radicand 2)))
 	    (when val (return-from $_raddenest0 (pow val ex))))
@@ -1355,7 +1355,7 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
        ;;
        ;; res: sqrt(1/tt)*abs(-1/2*s^2*(alpha^2)^(1/3)
        ;;         +s*(alpha*beta)^(1/3)+(beta^2)^(1/3))
-       (setq res (mul
+       (setq res (mul*
 		  (root (inv tt) 2)
 		  ($abs
 		   (add
