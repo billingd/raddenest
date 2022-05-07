@@ -654,9 +654,8 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 
 ;;; SHIM FUNCTION DURING CONVERSION
 
-;;; There is existing function sqrtdenest1 in src/sqrtdenest.lisp
-(defun _sqrtdenest1 (expr denester)
-  (simplify (mfunction-call $_sqrtdenest1 expr denester)))
+(defun _denester (nested av0 h max_depth_level)
+  (simplify (mfunction-call $_denester nested av0 h max_depth_level)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -744,7 +743,7 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 	  (setq radicand ($expand (apply 'add radicand)))
 	  ;;(format t "  radicand ~a ex ~a~%" radicand ex)
 	  (return-from $_raddenest0
-			 (pow (_sqrtdenest1 (root radicand 2) t) ex))))
+			 (pow ($_sqrtdenest1 (root radicand 2) t) ex))))
 	 
 	 ;; try Cardano polynomials for (a+b*sqrt(r))^(m/n)
 	 ((and ;;(not (format t "Shall we try Cardan method?~%"))
@@ -858,7 +857,7 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 	  (setq c (mul (add d_1 f) sqrt2/2))
           (setq c ($expand c)))
 	;; else 
-        (setq c (_sqrtdenest1 (root c2 2) t)))
+        (setq c ($_sqrtdenest1 (root c2 2) t)))
       ;; Time to give up?      
       (when (> ($_sqrt_depth c) 1) (throw 'raddenestStopIteration nil))
       
@@ -882,12 +881,84 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; _sqrtdenest1 goes here
+;;; Return denested expr after denesting with simpler
+;;; methods or, that failing, using the denester.
+;;; 'denester' is a boolean indicating if _denester
+;;; should be called.
+(defmfun $_sqrtdenest1 (expr denester)
+  (let (($inflag t)
+	($algebraic t)
+	a val b r d2 z dr2 dr res av0 radicand)
+    (unless ($_sqrtp expr) ; not literal sqrt of form radicand^(1/2)
+      (return-from $_sqrtdenest1 expr))
+    (when ($atom (setq radicand (second expr)))
+      (return-from $_sqrtdenest1 expr))
+    (unless (setq val ($_sqrt_match radicand))
+      (return-from $_sqrtdenest1 expr))
+ 
+    ;; Trivial cases disposed of.  Now get to work.
+    (setq a (second val)) ; val is a maxima list [a,b,r]
+    (setq b (third val))
+    (setq r (fourth val))
+    ;; try a quick numeric denesting
+    ;; d2 = a^2-b^2*r
+    (setq d2 (sub* (pow a 2) (mul (pow b 2) r)))
+    (setq d2 ($rootscontract ($expand d2)))
+    (cond
+     (($ratnump d2)
+      (cond 			
+       ((my-mgreaterp d2 0) ; d2 rational and d2 > 0
+	(setq z ($_sqrt_numeric_denest a b r d2))
+	(when z (return-from $_sqrtdenest1 z)))
+       ;; d2 rational and d2 <= 0
+       (t
+        ;; fourth root case, e.g.
+        ;; sqrtdenest(sqrt(3+2*sqrt(3)))
+        ;;            -> sqrt(2)*3^(1/4)/2+sqrt(2)*3^(3/4)/2
+        (setq dr2 ($expand (neg (mul d2 r))))
+        (setq dr (root dr2 2))
+        (when ($ratnump dr)
+          (setq z ($_sqrt_numeric_denest ($expand (mul b r)) a r dr2))
+          (when z
+	    (setq z ($expand ($ratsimp (div z (root r 4)))))
+	    (return-from $_sqrtdenest1 z))))))
+     ;; d2 not rational
+     (t
+      (setq z ($_sqrt_symbolic_denest a b r))
+      (when z (return-from $_sqrtdenest1 z))))
+
+    ;; Whatever branch was selected above, it failed
+    ;; Perhaps just give up
+    (when (or (not denester) (not ($_algebraicp expr)))
+      (return-from $_sqrtdenest1 expr))
+
+    ;; Try _sqrt_biquadratic_denest
+    (setq res ($_sqrt_biquadratic_denest expr a b r d2))
+    (when res (return-from $_sqrtdenest1 res))
+
+    ;; now try the denester
+    (let (sqrt_depth_expr sqrt_depth_z expr^2_list)
+      (setq sqrt_depth_expr ($_sqrt_depth expr))
+      (setq av0 `((mlist) ,a ,b ,r ,d2))
+      ;; maxima list [expr^2]
+      (setq expr^2_list `((mlist) ,(simplify (pow expr 2))))
+      (setq z (_denester expr^2_list av0 0 sqrt_depth_expr))
+      (setq z (second z)) ; z[1]
+      ;;denester has side-effect on av0!
+      (unless (third av0) (return-from $_sqrtdenest1 expr))
+      (when z
+	;; Reject z if it is more complex than expr
+	(if (and (= ($_sqrt_depth z) sqrt_depth_expr)
+		 (>= ($_complexity z) ($_complexity expr)))
+	(return-from $_sqrtdenest1 expr)
+        (return-from $_sqrtdenest1 z))))
+
+    ;; Nothing worked
+    expr))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; _sqrt_symbolic_denest goes here
 ;;; Given an expression, sqrt(a + b*sqrt(r)), return the denested
 ;;; expression or false.  This function uses the facts database
 ;;; for comparisons to allow denesting of symbolic expressions.
