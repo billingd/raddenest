@@ -620,6 +620,16 @@ _denester([2*3^(3/2)+10],[10,6,3,-8],0,2);
 _denester([-8,3],[false,6,3,-8],1,2);
 [sqrt(3),[0,0]]$
 
+/* This is not denested by .mac version */
+(x:sqrt(4*sqrt(sqrt(3)+1)*3^(3/2)*sqrt(3^(3/2)+3)
+        +20*sqrt(sqrt(3)+1)*sqrt(3^(3/2)+3)+64*sqrt(3)+112),
+y:_sqrtdenest1(x,true))$
+(-sqrt(2*3^(9/2)+324))+sqrt(8*3^(7/2)+432)+(5*sqrt(8*3^(5/2)+144))/3
+                             -5*sqrt(2*3^(3/2)+12)+4*sqrt(3)+6;
+
+ _sqrt_depth(y)$
+2;
+
 
 /* clean up */
 (kill(w,a,b,r,rad,x,y,z,d2,e,n,d,ra),forget(x>0,y>0),'done);
