@@ -784,7 +784,10 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 	;; None of the special methods worked.  Try recursing
 	;; expr must be an expression so (first expr) is the operator
 	(format t "raddenest0: recursion branch: expr ~a~%" expr)
-	`(,(first expr) ,@(mapcar '$_raddenest0 (rest expr)))))))
+	;; `(,(first expr) ,@(mapcar '$_raddenest0 (rest expr))))
+	(setq ret (mapcar '$_raddenest0 (rest expr)))
+	($expand  `(,(first expr) ,@ret) 0 0 )))
+      ))
 
 			   
 
