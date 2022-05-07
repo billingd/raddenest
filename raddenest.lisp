@@ -658,11 +658,6 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 (defun _sqrtdenest1 (expr denester)
   (simplify (mfunction-call $_sqrtdenest1 expr denester)))
 
-#|
-(defun raddenest0 (expr)
-  (simplify (mfunction-call $_raddenest0 expr)))
-|#
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
@@ -707,12 +702,12 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
       (setq radicand (second expr)) ; expr = radicand^ex
       (setq ex (third expr))
       ;; Try different methods
-      (format t "expt branch~%  radicand ~a~%  ex ~a~%" radicand ex)
+      ;;(format t "expt branch~%  radicand ~a~%  ex ~a~%" radicand ex)
       (cond
        ;; Negative exponent. (Differs from maxima code)
        ;; Recurse with positive exponent and invert result
        ((my-mlessp ex 0)
-	(format t "Negative exponent~%")
+	;;(format t "Negative exponent~%")
 	(return-from $_raddenest0
 		     (inv ($_raddenest0 (pow radicand (mul -1 ex))))))
 	 
@@ -721,18 +716,18 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
        ;; expr has the form (radicand)^(n/2) for integer n
        ;; try recursive denesting using _sqrtdenest_rec
        (($_sqrtpowerp expr)
-	(format t "raddenest0: sqrtpowerp branch~%")
+	;;(format t "raddenest0: sqrtpowerp branch~%")
 	(setq radicand ($expand ($ratsimp radicand)))
 	(setq ex (mul 2 ex))
-	(format t "  radicand ~a~%  ex ~a~%" radicand ex)
+	;;(format t "  radicand ~a~%  ex ~a~%" radicand ex)
 	;; if radicand is a sum
 	(when (mplusp radicand)
 	  (setq ar (rest radicand))  ; arguments of "+"
 	  ;; Three or more arguments are all square roots of integers
-	  (format t "In mplus clause: ar ~a~%" ar)
+	  ;;(format t "In mplus clause: ar ~a~%" ar)
 	  (when (and (> (length ar) 2)
 		     (every #'sqrtintegerp ar))
-	    (format t "raddenest0: sum of three sqrts branch~%")
+	    ;;(format t "raddenest0: sum of three sqrts branch~%")
 	    (setq val (catch 'raddenestStopIteration
 			($_sqrtdenest_rec (root radicand 2))))
             (when val (return-from $_raddenest0 (pow val ex))))
@@ -740,26 +735,25 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 	  (when (and (eql (length ar) 2)
 		     ($ratnump (pow (first ar) 3))
 		     ($ratnump (pow (second ar) 3)))
-	    (format t "raddenest0: sum of two cube roots branch~%")
+	    ;;(format t "raddenest0: sum of two cube roots branch~%")
 	    (setq val ($_rad_denest_ramanujan (root radicand 2)))
 	    (when val (return-from $_raddenest0 (pow val ex))))
 	  ;; arg is '+' but not a special case 
-          (format t "raddenest0: fall through branch~%")
+          ;;(format t "raddenest0: fall through branch~%")
 	  (setq radicand (mapcar '$_raddenest0 ar))
 	  (setq radicand ($expand (apply 'add radicand)))
-	  (format t "  radicand ~a ex ~a~%" radicand ex)
+	  ;;(format t "  radicand ~a ex ~a~%" radicand ex)
 	  (return-from $_raddenest0
 			 (pow (_sqrtdenest1 (root radicand 2) t) ex))))
 	 
 	 ;; try Cardano polynomials for (a+b*sqrt(r))^(m/n)
-	 ((and (not (format t "Shall we try Cardan method?~%"))
+	 ((and ;;(not (format t "Shall we try Cardan method?~%"))
 	       (mexptp expr)
 	       ($ratnump ex) ; exponent is rational
 	       (mplusp radicand) ; radicand is a sum
 	       (eql (length (setq ar (rest radicand))) 2) ; sum of two terms
-	       (every #'sqrtposratnump ar)
-	       (not (format t "Yes we will!~%")))
-	  (format t "raddenest0: Cardan polynomials branch~%")
+	       (every #'sqrtposratnump ar))
+	  ;;(format t "raddenest0: Cardan polynomials branch~%")
 	  (return-from $_raddenest0 ($_rad_denest_cardano expr)))
 	 
 	 ;; expr is an n-th root with n even
@@ -772,7 +766,7 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 	  ;;       indeed decreases, but this is not checked by the
 	  ;;       current code.
 	  ;;       (Same behaviour as sqdnst.mac)
-	  (format t "raddenest0: n-root with n even branch~%")
+	  ;;(format t "raddenest0: n-root with n even branch~%")
 	  (setq radicand ($expand ($ratsimp radicand)))
 	  (setq ex (mul 2 ex)) ; 2*exponent
 	  (setq val ($_raddenest0 (root radicand 2)))
@@ -783,7 +777,7 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
       (progn
 	;; None of the special methods worked.  Try recursing
 	;; expr must be an expression so (first expr) is the operator
-	(format t "raddenest0: recursion branch: expr ~a~%" expr)
+	;;(format t "raddenest0: recursion branch: expr ~a~%" expr)
 	;; `(,(first expr) ,@(mapcar '$_raddenest0 (rest expr))))
 	(setq ret (mapcar '$_raddenest0 (rest expr)))
 	($expand  `(,(first expr) ,@ret) 0 0 )))
