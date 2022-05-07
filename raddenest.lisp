@@ -423,7 +423,27 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
     (destructuring-bind (op r e) x (if nested nil (sqrtratp r t))))
    (t nil)))
 
+(defun sqrtintegerp (x)
+  ;; This gives sqrt(-2)=sqrt(2)*%i => t
+  "True if x^2 is an integer"
+  (cond
+   (($integerp x) t)
+   (($atom x) nil)
+   (($ratnump x) nil)
+   ;; Improve this ?
+   (($integerp (pow x 2)) t)
+   (t nil)))
 
+(defun sqrtposratnump (x)
+  "True if x^2 is a positive rational"
+  (let (x^2)
+    (cond
+     (($ratnump x) t)
+     (($atom x) nil)
+     ;; Improve this ?
+     (($ratnump (setq x^2 (pow x 2))) (my-mgreaterp x^2 0))
+     (t nil))))
+ 
 (defun ratorsqrtp (p)
   "true if p is a rational or the sqrt of a rational"
   (if (or ($ratnump p) (sqrtratp p)) t nil))
@@ -638,8 +658,10 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 (defun _sqrtdenest1 (expr denester)
   (simplify (mfunction-call $_sqrtdenest1 expr denester)))
 
+#|
 (defun raddenest0 (expr)
   (simplify (mfunction-call $_raddenest0 expr)))
+|#
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -650,14 +672,121 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
   (let (($algebraic t)
 	($rootsconmode nil))
     (loop
-     for z = ($_sqrtcontract (raddenest0 expr))
+     for z = ($_sqrtcontract ($_raddenest0 expr))
      repeat max_iter ; repeat must follow for (clisp complains)
      until (alike1 expr z)
      do (setq expr z)
      finally (return expr))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; _raddenest0 goes here
+
+
+;;; maxima expressions like
+;;;    sqrt(sqrt(3)/2+1)/sqrt(11*sqrt(2)-12)
+;;; are expressed as
+;;; ((MTIMES)
+;;;   ((MEXPT)
+;;;     ((MPLUS) -12 ((MTIMES) 11 ((MEXPT) 2 ((RAT) 1 2))))
+;;;     ((RAT) -1 2))
+;;;   ((MEXPT)
+;;;     ((MPLUS) 1
+;;;       ((MTIMES) ((RAT) 1 2) ((MEXPT) 3 ((RAT) 1 2))))
+;;;   ((RAT) 1 2)))
+(defmfun $_raddenest0 (expr)
+  "Returns expr after (recursively) denesting its arguments"
+  (let ((ret nil)  ; return value
+	($inflag t) ($algebraic t)
+	ex ar val n)
+    ;; The interesting case is when expr = radicand^ex
+    (cond
+     ;; trivial cases
+     ((or ($atom expr)($ratnump expr)) (setq ret expr))
+     ;; operator is "^"
+     ((mexptp expr)
+      (setq radicand (second expr)) ; expr = radicand^ex
+      (setq ex (third expr))
+      ;; Try different methods
+      (format t "expt branch~%  radicand ~a~%  ex ~a~%" radicand ex)
+      (cond
+       ;; Negative exponent. (Differs from maxima code)
+       ;; Recurse with positive exponent and invert result
+       ((my-mlessp ex 0)
+	(format t "Negative exponent~%")
+	(return-from $_raddenest0
+		     (inv ($_raddenest0 (pow radicand (mul -1 ex))))))
+	 
+       ;; expr is sqrt.
+       ;; Recall maxima simplifies sqrt(125) to sqrt(5)^(3/2)
+       ;; expr has the form (radicand)^(n/2) for integer n
+       ;; try recursive denesting using _sqrtdenest_rec
+       (($_sqrtpowerp expr)
+	(format t "raddenest0: sqrtpowerp branch~%")
+	(setq radicand ($expand ($ratsimp radicand)))
+	(setq ex (mul 2 ex))
+	(format t "  radicand ~a~%  ex ~a~%" radicand ex)
+	;; if radicand is a sum
+	(when (mplusp radicand)
+	  (setq ar (rest radicand))  ; arguments of "+"
+	  ;; Three or more arguments are all square roots of integers
+	  (format t "In mplus clause: ar ~a~%" ar)
+	  (when (and (> (length ar) 2)
+		     (every #'sqrtintegerp ar))
+	    (format t "raddenest0: sum of three sqrts branch~%")
+	    (setq val (catch 'raddenestStopIteration
+			($_sqrtdenest_rec (root radicand 2))))
+            (when val (return-from $_raddenest0 (pow val ex))))
+	  ;; argument is sum of two cube roots of rationals
+	  (when (and (eql (length ar) 2)
+		     ($ratnump (root (first ar) 3))
+		     ($ratnump (root (second ar) 3)))
+	    (format t "raddenest0: sum of two cube roots branch~%")
+	    (setq val ($_rad_denest_ramanujan (root radicand 2)))
+	    (when val (return-from $_raddenest0 (pow val ex))))
+	  ;; arg is '+' but not a special case 
+          (format t "raddenest0: fall through branch~%")
+	  (setq radicand (mapcar '$_raddenest0 ar))
+	  (setq radicand ($expand (apply 'add radicand)))
+	  (format t "  radicand ~a ex ~a~%" radicand ex)
+	  (return-from $_raddenest0
+			 (pow (_sqrtdenest1 (root radicand 2) t) ex))))
+	 
+	 ;; try Cardano polynomials for (a+b*sqrt(r))^(m/n)
+	 ((and (not (format t "Shall we try Cardan method?~%"))
+	       (mexptp expr)
+	       ($ratnump ex) ; exponent is rational
+	       (mplusp radicand) ; radicand is a sum
+	       (eql (length (setq ar (rest radicand))) 2) ; sum of two terms
+	       (every #'sqrtposratnump ar)
+	       (not (format t "Yes we will!~%")))
+	  (format t "raddenest0: Cardan polynomials branch~%")
+	  (return-from $_raddenest0 ($_rad_denest_cardano expr)))
+	 
+	 ;; expr is an n-th root with n even
+	 (($evenp ($denom (third expr)))
+	  ;;  Some fourth roots denest in two steps
+	  ;;       e.g.    (19601-3465*2^(5/2))^(7/4)
+	  ;;           ->  (99-35*2^(3/2))^(7/2)
+	  ;;           ->  (5*sqrt(2)-7)^7
+	  ;;       This is only useful if the global nesting depth
+	  ;;       indeed decreases, but this is not checked by the
+	  ;;       current code.
+	  ;;       (Same behaviour as sqdnst.mac)
+	  (format t "raddenest0: n-root with n even branch~%")
+	  (setq radicand ($expand ($ratsimp radicand)))
+	  (setq ex (mul 2 ex)) ; 2*exponent
+	  (setq val ($_raddenest0 (root radicand 2)))
+	  (setq ret (pow val ex))))))
+
+    (if ret
+      ret
+      (progn
+	;; None of the special methods worked.  Try recursing
+	;; expr must be an expression so (first expr) is the operator
+	(format t "raddenest0: recursion branch: expr ~a~%" expr)
+	`(,(first expr) ,@(mapcar '$_raddenest0 (rest expr)))))))
+
+			   
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -734,7 +863,7 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 	;; else 
         (setq c (_sqrtdenest1 (root c2 2) t)))
       ;; Time to give up?      
-      (when (> ($_sqrt_depth c) 1) ($throw "raddenestStopIteration"))
+      (when (> ($_sqrt_depth c) 1) (throw 'raddenestStopIteration nil))
       
       (setq ac ($rootscontract (add a c)))
       ;; check for end of recursion
@@ -743,10 +872,10 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
 		 (>= (length (rest ac)) (length (rest r)))
 		 (>= ($_complexity ac)
 		     ($_complexity r)))
-	($throw "raddenestStopIteration"))
+	(throw 'raddenestStopIteration nil))
       
       (setq d ($raddenest (root ac 2)))
-      (when (> ($_sqrt_depth d) 1) ($throw "raddenestStopIteration"))
+      (when (> ($_sqrt_depth d) 1) (throw 'raddenestStopIteration nil))
       (setq r (div b d)) ; r = b/d  NOTE: r has been repurposed
       (setq r ($rootscontract ($expand ($ratsimp r))))
       (setq r (div ($expand (add (mul d sqrt2) (mul r sqrt2))) 2))
