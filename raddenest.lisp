@@ -66,14 +66,6 @@ The implemented algorithms are documented in the following articles:
     (PhD Thesis)
     http://www.math.kun.nl/~bosma/students/honsbeek/M_Honsbeek_thesis.pdf
 
-A gentle introduction to the theory of denesting square roots of positive 
-rationals is given in
-
-[5] Eleftherios Gkioulekas
-    On the denesting of nested square roots, 
-    Int J Math Educ Sci Technol (2017), 48(6), 942–952
-
-
 As such, the raddenest function should be able to denest some or all
 of the denestable expressions of the following types:
 
@@ -146,6 +138,15 @@ POSSIBLE IMPROVEMENTS AND FURTHER READING
     "Simplifying Expressions Involving Radicals"
     PhD Thesis, 1993
     http://www.cs.nyu.edu/exact/pap/rootBounds/sumOfSqrts/bloemerThesis.pdf
+
+A gentle introduction to the theory of denesting square roots of positive 
+rationals is given in
+
+[8] Eleftherios Gkioulekas
+    On the denesting of nested square roots, 
+    Int J Math Educ Sci Technol (2017), 48(6), 942–952
+    DOI: 10.1080/0020739X.2017.1290831
+
 |#
 
 ;;;Helper functions
