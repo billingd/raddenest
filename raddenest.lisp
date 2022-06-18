@@ -1251,7 +1251,7 @@ rationals is given in
        (setq val (root product 2))  ; sqrt(product)
        (when ($ratnump val) (return val)))))
 
-;;; find_perfect_square (nested)
+;;; find_perfect_square (nested m)
 ;;;
 ;;; nested is a (maxima) list of m radicands. Find a subset whose
 ;;; product is a perfect square val^2 for rational val.
