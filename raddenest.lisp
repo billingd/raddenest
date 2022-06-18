@@ -1231,41 +1231,65 @@ rationals is given in
 
 ;;; _denester goes here
 
-;;; product_is_square (terms subset)
+;;; product_is_square (terms factor)
 ;;;
 ;;; terms is a maxima list of rational numbers with $numberp(term)=true
 ;;; subset is a maxima list of 0s and 1s
 ;;; Is the product of terms in nested given by subset=1 a perfect square?
 ;;; If so, return val = sqrt(product), otherwise nil
-(defun product_is_square (terms subset)
+(defun product_is_square (terms factor m)
   (let (product val)
     (loop
      for term in (rest terms) ; maxima list
-     for f in (rest subset)   ; maxima list
+     for f in (rest factor)  ; factor is a maxima list
+     for i = 1 then (+ i 1)  ; to identify the m-th term
+     ;; if term[m] is combined with other terms. Multiply by -1.
+     if (and (= f 1) (= i m)  p) collect -1 into p
      if (= f 1) collect term into p
      finally
-       (setq product (apply #'mul p)) ; product of terms in subset
+       (setq product (apply #'mul p)) ; product of terms with factor[i]=1
        (setq val (root product 2))  ; sqrt(product)
        (when ($ratnump val) (return val)))))
 
-;;; find_square_product (terms)
+;;; find_perfect_square (nested)
 ;;;
-;;; Given a (maxima) list term of n rationals, find a subset whose
+;;; nested is a (maxima) list of m radicands. Find a subset whose
+;;; product is a perfect square val^2 for rational val.
+;;;
+;;; Borodin et al (1985) p181
+;;;
+;;; Find a perfect square x^2 among products of the m input radicands.
+;;; Before entering the radicand of nested[m] into any product with
+;;; at least one other radicand, it should be multiplied by -1. Record
+;;; the radicands entering into the product by placing 1’s into the
+;;; appropriate cells of the array factor. Return x.
+;;; If no perfect square is found, set factor [i] = 0 for all i
+;;; and return sqrt(nested[m]).
+;;;
+;;; Given a (maxima) list term of m rationals, find a subset whose
 ;;; product is a perfect square val^2 for rational val.
 ;;;
 ;;;Return maxima list [val,subset] or false/nil if no match
 ;;;   val - value of square root of product of selected terms
-;;;   subset - maxima list of 0s and 1s denoting subset chosen
+;;;   factor - maxima list of 0s and 1s denoting subset chosen
 ;;;
 ;;; Borodin (1985), Section 3 has a more sophisticated approach.
-(defun find_square_product (terms)
-  (let ((n (length (rest terms))) val) ; terms is a maxima list
-    (loop
-     for subset in (rest ($_subsets n))
-     do
-       (setq val (product_is_square terms subset))
-       when val
-         return `((mlist) ,val ,subset))))
+(defun find_perfect_square (nested m)
+  (loop ; until a perfect square is found
+    for factor in (rest ($_subsets m)) ; another maxima list
+    for val = (product_is_square nested factor m)
+    until val
+    finally
+      (unless val ; No perfect square found
+	;;(format t "val: ~a~%" val)
+	;;(format t "(last nested): ~a~%" (last nested))
+        (setq val (root (car (last nested)) 2))
+	;;(format t "val: ~a~%" val)
+        (setq factor `((mlist) ,@(make-list m :initial-element 0))))
+      (return `((mlist) ,val ,factor))))
+
+;;; Can write subsets using the logbitp function
+;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

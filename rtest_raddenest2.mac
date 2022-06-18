@@ -166,32 +166,63 @@ false$
 sqrt(-2*sqrt(29) + 11) + sqrt(5)$
 
 /* Unit tests for find_square_product and product_is_square */
-?product_is_square([1,2,2],[0,1,1]);
+?product_is_square([1,2,-2],[0,1,1],3);
 2$
 
-?product_is_square([3,4,1],[0,1,1]);
+?product_is_square([3,4,1],[0,1,-1],3);
 2$
 
-?product_is_square([3,sqrt(2),sqrt(8)],[0,1,1]);
+?product_is_square([3,sqrt(2),-sqrt(8)],[0,1,1],3);
 2$
 
-?product_is_square([3,sqrt(2),sqrt(8)],[1,1,1]);
+?product_is_square([3,sqrt(2),sqrt(8)],[1,1,1],3);
 false$
 
-?find_square_product([3,6,2]);
+?product_is_square([-12,-3,7],[1,1,0],3);
+6;
+
+?product_is_square([2,3,4],[0,0,1],3);
+2;
+
+?find_perfect_square([3,6,-2],3);
 [6,[1,1,1]]$
 
-?find_square_product([3,6,5]);
-false$
+?find_perfect_square([3,6,5],3);
+[sqrt(5),[0,0,0]]$
 
-?find_square_product([1/4,6,5]);
+?find_perfect_square([1/4,6,5],3);
 [1/2,[1,0,0]];
 
-?find_square_product([1/2,1/3,1/8]);
+?find_perfect_square([1/2,1/3,-1/8],3);
 [1/4,[1,0,1]]$
 
-?find_square_product([1/3,6,5]);
-false;
+?find_perfect_square([1/3,6,5],3);
+[sqrt(5),[0,0,0]]$
+
+?find_perfect_square([2,3,4],3);
+[2,[0,0,1]];
+
+?find_perfect_square([-12,-3,7],3);
+[6,[1,1,0]]$
+
+?find_perfect_square([-12,7,3],3);
+[6,[1,0,1]];
+
+?find_perfect_square([2,3,5],3);
+[sqrt(5),[0,0,0]];
+
+?find_perfect_square([-1,3,-4],3);
+[2*%i,[0,0,0]];
+
+?find_perfect_square([-2,3,2],3);
+[2,[1,0,1]];
+
+?find_perfect_square([2,3,-2],3);
+[2,[1,0,1]];
+
+/* Is this correct? */
+?find_perfect_square([-1,3,-4],3);
+[2*%i,[0,0,0]];
 
 (kill(a,b,r), forget(y>0), done);
 done$
