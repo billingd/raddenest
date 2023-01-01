@@ -19,6 +19,37 @@ Once/if it works then there are *opportunities for improvement*.
 
 Whenever.
 
+## Progress
+
+The following is a function in the maxima version, with those
+translated to lisp ~~struck through~~.
+
+* ~~_sqrtp~~ 
+* ~~_sqrtpowerp~~
+* ~~_algebraicp~~
+* ~~_sqrt_depth~~
+* ~~_complexity~~
+* ~~_sqrtcontract~~
+* ~~_sqrtcontract0~~
+* ~~_ss(n)~~ not required
+* ~~_subsets~~
+* ~~_splitcoef~~
+* ~~_sqrt_match~~
+* ~~_split_gcd~~
+* ~~_split_surds~~
+* ~~raddenest~~
+* ~~_raddenest0~~
+* ~~_sqrtdenest_rec~~
+* ~~_sqrtdenest1~~
+* ~~_sqrt_symbolic_denest~~
+* ~~_sqrt_numeric_denest~~
+* ~~_sqrt_biquadratic_denest~~
+* _denester
+* ~~_cardano_poly~~
+* ~~_rad_denest_cardano~~
+* ~~_rad_denest_ramanujan~~
+
+
 ## How do I to use it?
 
 Just
