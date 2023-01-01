@@ -478,7 +478,7 @@ rationals is given in
       (t ; p is not a maxima number or a sum
        ;; splitcoef returns a maxima list [b,r] where p = b*sqrt(r)
        (destructuring-bind (op b r) ($_splitcoef p)
-	  (if ($_sqrtp r) `((mlist) 0 ,b ,(pow r 2)) nil))))))
+	  (if ($_sqrtp r) `((mlist) 0 ,b ,(power r 2)) nil))))))
 
 
 ;;; comparison function for sqrt_match2
@@ -717,7 +717,7 @@ rationals is given in
        ((my-mlessp ex 0)
 	;;(format t "Negative exponent~%")
 	(return-from $_raddenest0
-		     (inv ($_raddenest0 (pow radicand (mul -1 ex))))))
+		     (inv ($_raddenest0 (power radicand (mul -1 ex))))))
 	 
        ;; expr is sqrt.
        ;; Recall maxima simplifies sqrt(125) to sqrt(5)^(3/2)
@@ -738,21 +738,21 @@ rationals is given in
 	    ;;(format t "raddenest0: sum of three sqrts branch~%")
 	    (setq val (catch 'raddenestStopIteration
 			($_sqrtdenest_rec (root radicand 2))))
-            (when val (return-from $_raddenest0 (pow val ex))))
+            (when val (return-from $_raddenest0 (power val ex))))
 	  ;; argument is sum of two cube roots of rationals
 	  (when (and (eql (length ar) 2)
-		     ($ratnump (pow (first ar) 3))
-		     ($ratnump (pow (second ar) 3)))
+		     ($ratnump (power (first ar) 3))
+		     ($ratnump (power (second ar) 3)))
 	    ;;(format t "raddenest0: sum of two cube roots branch~%")
 	    (setq val ($_rad_denest_ramanujan (root radicand 2)))
-	    (when val (return-from $_raddenest0 (pow val ex))))
+	    (when val (return-from $_raddenest0 (power val ex))))
 	  ;; arg is '+' but not a special case 
           ;;(format t "raddenest0: fall through branch~%")
 	  (setq radicand (mapcar '$_raddenest0 ar))
 	  (setq radicand ($expand (apply 'add radicand)))
 	  ;;(format t "  radicand ~a ex ~a~%" radicand ex)
 	  (return-from $_raddenest0
-			 (pow ($_sqrtdenest1 (root radicand 2) t) ex))))
+			 (power ($_sqrtdenest1 (root radicand 2) t) ex))))
 	 
 	 ;; try Cardano polynomials for (a+b*sqrt(r))^(m/n)
 	 ((and ;;(not (format t "Shall we try Cardan method?~%"))
@@ -778,7 +778,7 @@ rationals is given in
 	  (setq radicand ($expand ($ratsimp radicand)))
 	  (setq ex (mul 2 ex)) ; 2*exponent
 	  (setq val ($_raddenest0 (root radicand 2)))
-	  (setq ret (pow val ex))))))
+	  (setq ret (power val ex))))))
 
     (if ret
       ret
@@ -842,7 +842,7 @@ rationals is given in
       (setq a (mul a (root g 2))) ; a = a*sqrt(g)
       (when (my-mlessp a b) ; if a<b, swap a and b
 	(let ((tmp a)) (setq a b) (setq b tmp)))
-      (setq c2 (sub (pow a 2) (pow b 2))) ; a^2-b^2
+      (setq c2 (sub (power a 2) (power b 2))) ; a^2-b^2
       (setq c2 ($rootscontract ($expand c2)))
       
       ;; Is there another level? expression c2 has > 2 args
@@ -855,7 +855,7 @@ rationals is given in
 	  (setq a1 (mul a1 (root g 2))) ; a1 = a1*sqrt(g)
 	  (when (my-mlessp a1 b1) ; if a1<b1, swap a1 and b1
 	    (let ((tmp a1)) (setq a1 b1) (setq b1 tmp)))
-	  (setq c2_1 (sub (pow a1 2) (pow b1 2))) ; a1^2-b1^2
+	  (setq c2_1 (sub (power a1 2) (power b1 2))) ; a1^2-b1^2
 	  (setq c2_1 ($rootscontract ($expand c2_1)))
 	  
           (setq c_1 ($_sqrtdenest_rec (root c2_1 2)))
@@ -911,7 +911,7 @@ rationals is given in
     (setq r (fourth val))
     ;; try a quick numeric denesting
     ;; d2 = a^2-b^2*r
-    (setq d2 (sub* (pow a 2) (mul (pow b 2) r)))
+    (setq d2 (sub* (power a 2) (mul (power b 2) r)))
     (setq d2 ($rootscontract ($expand d2)))
     (cond
      (($ratnump d2)
@@ -950,7 +950,7 @@ rationals is given in
       (setq sqrt_depth_expr ($_sqrt_depth expr))
       (setq av0 `((mlist) ,a ,b ,r ,d2))
       ;; maxima list [expr^2]
-      (setq expr^2_list `((mlist) ,(simplify (pow expr 2))))
+      (setq expr^2_list `((mlist) ,(simplify (power expr 2))))
       (setq z (_denester expr^2_list av0 0 sqrt_depth_expr))
       (setq z (second z)) ; z[1]
       ;;denester has side-effect on av0!
@@ -1014,13 +1014,13 @@ rationals is given in
     (when (and (my-mgeqp r 0) ;; r>=0
 	       (my-mgeqp ($ratsubst y r a) 0)) ; a>=0
       ;; Is d2=a^2-b^2*r a square?  Check if discriminant = 0.
-      (setq d2 ($ratsubst y r (sub (pow a 2) (mul (pow b 2) r))))
+      (setq d2 ($ratsubst y r (sub (power a 2) (mul (power b 2) r))))
       (when (alike1 ($hipow d2 y) 2)
         (setq ca ($ratcoef d2 y 2)) ; d2 = ca*y^2 + cb*y + cc
           (when ($ratnump (root ca 2))	
 	    (setq cb ($ratcoef d2 y 1))
 	    (setq cc ($ratcoef d2 y 0))
-	    (setq discriminant (sub (pow cb 2) (mul 4 ca cc))) ;cb^2-4*ca*cc
+	    (setq discriminant (sub (power cb 2) (mul 4 ca cc))) ;cb^2-4*ca*cc
 	    (when (alike1 discriminant 0)
 	      ;; If discriminant is 0, polynomial d2 can be factored
 	      ;; as a perfect square. sqrt(d2) = d = sqrt(ca)*(r+cb/(2*ca))
@@ -1086,7 +1086,7 @@ rationals is given in
 	(assume `((mgreaterp) ,y 0)) ; assume(y>0)
 	;; newa = subst((y^2-ra)/rb,sqrt(rr),a)
 	(setq newa
-	      ($substitute (div (sub (pow y 2) ra) rb)
+	      ($substitute (div (sub (power y 2) ra) rb)
 			   (root rr 2)
 			   a))
 	(when (equal ($hipow newa y) 2) ; newa is quadratic in y
@@ -1095,11 +1095,11 @@ rationals is given in
 	  (setq cc ($ratcoef newa y 0))
 	  (setq cb (add cb b)) ; cb = cb+b,
 	  ;; discriminant = cb^2-4*ca*cc
-	  (setq discriminant (sub (pow cb 2) (mul 4 ca cc)))
+	  (setq discriminant (sub (power cb 2) (mul 4 ca cc)))
 	  (setq discriminant ($expand discriminant))
 	  (when (alike1 discriminant 0)
 	    ;; z = sqrt(ca*(sqrt(r)+cb/(2*ca))^2)
-	    (setq z (root (mul ca (pow (add (root r 2) (div cb (mul 2 ca))) 2)) 2))
+	    (setq z (root (mul ca (power (add (root r 2) (div cb (mul 2 ca))) 2)) 2))
 	    (if ($constantp z) (setq z ($rootscontract ($expand z)))))))
       (killcontext newcontext)))
     z))
@@ -1132,7 +1132,7 @@ rationals is given in
     ;; sqrt_depth(expr) = depthr + 2
     ;; There is denesting if sqrt_depth(vad)+1 < depthr + 2
     ;; If vad^2 is a rational there is a fourth root denesting
-    (if (or (< ($_sqrt_depth vad) (+ depthr 1)) ($ratnump(pow vad 2)))
+    (if (or (< ($_sqrt_depth vad) (+ depthr 1)) ($ratnump (power vad 2)))
 	(progn
 	  (setq s ($signum b))
 	  (setq vad1 ($ratsimp (div 1 vad))) ; 1/vad
@@ -1205,7 +1205,7 @@ rationals is given in
         (loop
 	  ;; If x is a sum, check each term in x. Otherwise check x.
           for y in (if (not (mplusp x)) (list x) (rest x))
-          for y2 = (pow y 2)
+          for y2 = (power y 2)
 	    if (or (not (integerp y2)) (mnegp y2))
 	    do (return-from biquad)))
       (setq sqd ($raddenest (root d2 2)))
@@ -1328,7 +1328,7 @@ rationals is given in
     (loop
      with p with ps with s with x = ($gensym)
      for d in divs
-     for c = (root (sub (pow a 2) b) d) ; c = (a^2-b)^(1/d)
+     for c = (root (sub (power a 2) b) d) ; c = (a^2-b)^(1/d)
      if ($ratnump c) do
        ;; If c is rational then expr can be denested if s is a rational root of p
        ;; where
@@ -1354,10 +1354,10 @@ rationals is given in
 	   ;; result = ((s+sig*sqrt(s^2-4*c))/2)^(d/n))^m
 	   (setq result
 		 (power
-		  (div (add s (mul sig (root (sub (pow s 2) (mul 4 c)) 2))) 2)
+		  (div (add s (mul sig (root (sub (power s 2) (mul 4 c)) 2))) 2)
 		  (div (mul d) n)))
 	   (setq result ($expand ($ratsimp result)))
-	   (setq result (pow result m))
+	   (setq result (power result m))
 	   (return-from $_rad_denest_cardano result)))
      finally (return expr))))
 
@@ -1382,7 +1382,7 @@ rationals is given in
 (defun cardano_poly (n c x)
   (let (poly poly1 poly2)
     (setq poly2 ($rat x))                           ; degree n-2
-    (setq poly1 ($rat (sub (pow x 2) (mul 2 c))))   ; degree n-1
+    (setq poly1 ($rat (sub (power x 2) (mul 2 c))))   ; degree n-1
     (cond
      ((= n 1) poly2)
      ((= n 2) poly1)
@@ -1438,14 +1438,14 @@ rationals is given in
      ;; Fba: t^4+4*t^3+8*beta/alpha*t-4*beta/alpha
      ;; FIXME: Fba is a polynomial with integer coeffs.
      ;;        Could use specialized routines from rat3{a-e}.lisp.
-     (setq Fba (add (pow x 4) (mul 4 (pow x 3))
+     (setq Fba (add (power x 4) (mul 4 (power x 3))
 		    (mul 8 (div beta alpha) x) (mul -4 (div beta alpha))))
      (setq Fba ($multthru ($denom (mul 4 (div beta alpha))) Fba))
      ;; apply the rational root theorem to the polynomial Fba
      ;; to find s - any rational root (or nil on failure)
      (setq s (one-rational-root-poly Fba x 4))
      (when s
-       (setq tt (sub beta (mul (pow s 3) alpha))) ;tt=beta-s^3*alpha
+       (setq tt (sub beta (mul (power s 3) alpha))) ;tt=beta-s^3*alpha
        ;;  Sign: either alpha^(1/3)+beta^(1/3) is positive, then
        ;;  so is its sqrt, or alpha^(1/3)+beta^(1/3) is negative,
        ;;  then its sqrt is %i times a positive real.
@@ -1457,9 +1457,9 @@ rationals is given in
 		  (root (inv tt) 2)
 		  ($abs
 		   (add
-		    (mul -1//2 (pow s 2) (root (pow alpha 2) 3))
+		    (mul -1//2 (power s 2) (root (power alpha 2) 3))
 		    (mul s (root (mul alpha beta) 3))
-		    (root (pow beta 2) 3)))))
+		    (root (power beta 2) 3)))))
        ($ratsimp res))))))
 
 ;;; Use the rational root theorem to return a rational root of
@@ -1512,6 +1512,6 @@ rationals is given in
 ;;; Start with the simple form similar to maxima code.
 ;;; Need to be careful with complex and negative args if modified.
 (defun arg-of-cbrt (ex)
-  (let ((r (pow ex 3)))
+  (let ((r (power ex 3)))
     (if ($ratnump r) r nil)))
 
