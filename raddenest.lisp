@@ -373,8 +373,8 @@ rationals is given in
 	   (eql ($denom expt) 2))
       	(setq r (root base 2)) ; r = sqrt(base)
 	(if (great expt 0) ; expt > 0
-	    (setq c (pow base ($quotient ($num expt) 2)))
- 	    (setq c (pow base ($quotient (sub ($num expt) 2) 2)))))
+	    (setq c (power base ($quotient ($num expt) 2)))
+ 	    (setq c (power base ($quotient (sub ($num expt) 2) 2)))))
      ;; product - collect factors for c and r 
      ;; if any factor is a power -> recurse to split it
      ;; this handles e.g. 3*5^(3/2)
@@ -440,7 +440,7 @@ rationals is given in
    (($atom x) nil)
    (($ratnump x) nil)
    ;; Improve this ?
-   (($integerp (pow x 2)) t)
+   (($integerp (power x 2)) t)
    (t nil)))
 
 (defun sqrtposratnump (x)
@@ -450,7 +450,7 @@ rationals is given in
      (($ratnump x) t)
      (($atom x) nil)
      ;; Improve this ?
-     (($ratnump (setq x^2 (pow x 2))) (my-mgreaterp x^2 0))
+     (($ratnump (setq x^2 (power x 2))) (my-mgreaterp x^2 0))
      (t nil))))
  
 (defun ratorsqrtp (p)
