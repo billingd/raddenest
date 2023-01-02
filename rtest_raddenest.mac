@@ -631,7 +631,7 @@ _denester([125,29],[false,-10,29,125],1,2)$
 _denester([11-2*sqrt(29)],[11,-2,29,5],0,2)$
 [sqrt(11-2*sqrt(29)),[0,0]];
 
-_denester [[5,29],[false,-2,29,5],1,2]$
+_denester([5,29],[false,-2,29,5],1,2)$
 [sqrt(29),[0,0]];
 
 /* Borodin et al, top of page 182 */
